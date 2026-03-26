@@ -3,6 +3,11 @@
   const WEEK_MIN = 1;
   const OPT_KEY = "memorize:options:v1";
   const TTS_KEY = "memorize:tts:v4";
+  const DEFAULT_OPTIONS = {
+    autoNextAfterDoneCurrent: false,
+    startSunday: "",
+    startSundayPromptSeen: false,
+  };
 
   const $q = (sel) => $(sel);
   const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
@@ -40,12 +45,45 @@
       };
     });
 
-  const computeFirstMonday = (year) => {
+  const startOfDay = (value) => {
+    const d = new Date(value);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const parseDateInputValue = (value) => {
+    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const [, yyyy, mm, dd] = match;
+    const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+    if (
+      date.getFullYear() !== Number(yyyy) ||
+      date.getMonth() !== Number(mm) - 1 ||
+      date.getDate() !== Number(dd)
+    ) {
+      return null;
+    }
+    return startOfDay(date);
+  };
+
+  const computeFirstSunday = (year) => {
     const d = new Date(year, 0, 1);
-    const offset = (8 - d.getDay()) % 7;
+    const offset = (7 - d.getDay()) % 7;
     d.setDate(d.getDate() + offset);
     d.setHours(0, 0, 0, 0);
     return d;
+  };
+
+  const isSunday = (date) => date instanceof Date && !Number.isNaN(date.getTime()) && date.getDay() === 0;
+
+  const resolveStartSunday = (year, value) => {
+    const fallback = computeFirstSunday(year);
+    if (!value) return fallback;
+    const parsed = parseDateInputValue(value);
+    if (!parsed) return fallback;
+    if (parsed.getFullYear() !== year) return fallback;
+    if (!isSunday(parsed)) return null;
+    return parsed;
   };
 
   const fmtKOR = (d) => {
@@ -69,8 +107,8 @@
   const setDoneMap = (year, map) => safeJSON.write(doneKey(year), map);
   const countDone = (map) => Object.values(map || {}).filter(Boolean).length;
 
-  const getOptions = () => safeJSON.read(OPT_KEY, { autoNextAfterDoneCurrent: false });
-  const setOptions = (value) => safeJSON.write(OPT_KEY, value);
+  const getOptions = () => ({ ...DEFAULT_OPTIONS, ...safeJSON.read(OPT_KEY, DEFAULT_OPTIONS) });
+  const setOptions = (value) => safeJSON.write(OPT_KEY, { ...DEFAULT_OPTIONS, ...value });
 
   const getTTS = () =>
     safeJSON.read(TTS_KEY, {
@@ -213,8 +251,9 @@
     $q("#progress").text(`진행률: ${countDone(doneMap)}/${state.totalWeeks}`);
   };
 
-  const renderOptions = () => {
-    $q("#auto-next-toggle").prop("checked", !!getOptions().autoNextAfterDoneCurrent);
+  const renderOptions = (state) => {
+    const opt = getOptions();
+    $q("#auto-next-toggle").prop("checked", !!opt.autoNextAfterDoneCurrent);
   };
 
   const renderMainCard = (state) => {
@@ -399,7 +438,7 @@
 
   const renderAll = (state) => {
     renderHeader(state);
-    renderOptions();
+    renderOptions(state);
     renderMainCard(state);
     renderTTS(state);
     updateNavButtons(state);
@@ -438,7 +477,7 @@
     window.addEventListener("beforeunload", () => stopTTS());
   };
 
-  const bindOptionEvents = () => {
+  const bindOptionEvents = (state) => {
     $q("#auto-next-toggle").off("change").on("change", function () {
       setOptions({ ...getOptions(), autoNextAfterDoneCurrent: this.checked });
     });
@@ -450,10 +489,10 @@
     const weeks = normalizeWeeks(raw);
     const totalWeeks = weeks.length || 32;
     const activeYear = new Date().getFullYear();
-    const startDate = computeFirstMonday(activeYear);
+    const opt = getOptions();
+    const startDate = resolveStartSunday(activeYear, opt.startSunday) || computeFirstSunday(activeYear);
     const currentWeek = getWeekIndex(startDate, totalWeeks);
     const queryWeek = getQueryWeek(totalWeeks);
-    const opt = getOptions();
 
     if ("speechSynthesis" in window) {
       try {
@@ -488,7 +527,7 @@
     if (queryWeek == null) setQueryWeek(state.selectedWeek);
 
     bindStaticEvents(state);
-    bindOptionEvents();
+    bindOptionEvents(state);
     renderAll(state);
     setTimeout(() => renderTTS(state), 300);
   })();
