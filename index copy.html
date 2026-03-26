@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- View-transition -->
+  <style>@view-transition {navigation: auto;}::view-transition-group {animation-duration: 5s;}</style>
+
+  <!-- Icon -->
+  <link href="/favicon.ico?v=2" rel="shortcut icon" type="image/x-icon" />
+  <link rel="icon" href="/favicon.ico?v=2" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+
+  <!-- Primary SEO -->
+  <title>날마다성경 | 365일 일독 · 52주 암송</title>
+  <meta name="description" content="날마다성경 앱으로 성경통독과 암송을 쉽게 관리하세요. 주평강교회 성도들을 위한 웹앱입니다. 52주 말씀 암송과 365일 성경 통독을 쉽고 편리하게 체크하고 공유할 수 있어요." />
+  <meta name="keywords" content="날마다성경, 성경 일독, 성경통독, 성경계획표, 성경 읽기, 성경 읽기 앱, 성경 읽기 계획, 매일 성경 읽기,주평강교회, 나의신앙생활, 웹앱, 52주 암송, 365일 일독, 성경 암송, 성경 읽기, 신앙생활, 기독교, 성경 공부" />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://jshalom.netlify.app/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="날마다성경" />
+  <meta property="og:title" content="날마다성경 | 365일 일독 · 52주 암송" />
+  <meta property="og:description" content="주평강교회 성도들을 위한 365일 일독 · 52주 암송 웹앱. 완료 체크와 공유 기능을 제공합니다." />
+  <meta property="og:url" content="https://jshalom.netlify.app/" />
+  <meta property="og:image" content="https://jshalom.netlify.app/icons/icon-512.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="날마다성경 | 365일 일독 · 52주 암송" />
+  <meta name="twitter:description" content="주평강교회 성도들을 위한 365일 일독 · 52주 암송 웹앱" />
+  <meta name="twitter:image" content="https://jshalom.netlify.app/icons/icon-512.png" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#2563EB">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+  <!-- Tailwind (darkMode: class) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { darkMode: "class" };</script>
+</head>
+
+<body class="bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <div class="max-w-md mx-auto p-4 space-y-4">
+    <!-- Header -->
+    <header class="pt-2 flex items-center justify-between">
+      <div class="w-10"></div>
+
+      <div class="text-center">
+        <h1 class="text-xl font-extrabold text-center flex-1">
+          <strong id="year">2026</strong>년 나의 신앙생활
+        </h1>
+        <small class="">ACTS 2026! 다시 복음으로!</small>
+      </div>
+
+
+      <!-- Theme Toggle (Home only) -->
+      <button id="theme-toggle"
+        class="w-10 h-10 grid place-items-center rounded-xl bg-white dark:bg-gray-800 shadow
+               active:scale-[0.95] text-xl"
+        aria-label="다크 모드">
+        🌙
+      </button>
+    </header>
+
+    <!-- Key Verse -->
+    <section class="bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-3xl shadow-lg p-5 relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full"></div>
+      <div class="absolute -bottom-12 -left-12 w-48 h-48 bg-white/10 rounded-full"></div>
+
+      <div class="flex items-start gap-3">
+        <div class="mt-1 w-1.5 rounded-full bg-white/70 shrink-0"></div>
+        <div>
+          <p class="text-[17px] leading-relaxed font-semibold">
+            “주 예수를 믿으라 그리하면<br class="sm:hidden" />
+            너와 네 집이 구원을 받으리라!”
+          </p>
+          <div class="mt-3 text-xs font-semibold opacity-90">사도행전 16장 31절</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 365일 일독 -->
+    <a href="/bible-read/"
+      class="block bg-white dark:bg-gray-800 rounded-2xl shadow p-5 active:scale-[0.99]">
+      <div class="text-xs text-gray-500 dark:text-gray-300">📖 성경 일독</div>
+      <div class="text-lg font-bold mt-1">365일 일독(성경읽기표)</div>
+
+      <div class="mt-3">
+        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-300">
+          <span>진행</span>
+          <span id="read-progress-text">0 / 365</span>
+        </div>
+        <div class="mt-1 h-2 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+          <div id="read-progress-bar" class="h-full rounded-full bg-blue-600 w-0"></div>
+        </div>
+      </div>
+    </a>
+
+    <!-- 52주 암송 -->
+    <a href="/memorize/"
+      class="block bg-white dark:bg-gray-800 rounded-2xl shadow p-5 active:scale-[0.99]">
+      <div class="text-xs text-gray-500 dark:text-gray-300">📌 성경 암송</div>
+      <div class="text-lg font-bold mt-1">52주 암송</div>
+
+      <div class="mt-3">
+        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-300">
+          <span>진행</span>
+          <span id="memo-progress-text">0 / 52</span>
+        </div>
+        <div class="mt-1 h-2 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+          <div id="memo-progress-bar" class="h-full rounded-full bg-blue-600 w-0"></div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Floating Share Button -->
+  <button id="share-btn"
+    class="fixed bottom-5 right-5 z-40 px-4 h-12 rounded-full bg-blue-600 text-white shadow-lg
+           flex items-center gap-2 text-sm font-semibold active:scale-[0.98]">
+    🔗 공유
+  </button>
+
+  <!-- Install Help Popup -->
+  <div id="install-overlay" class="hidden fixed inset-0 bg-black/40 z-50">
+    <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl p-5 shadow-lg">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-sm text-gray-500 dark:text-gray-300">날마다성경</div>
+          <div class="text-lg font-bold mt-1">홈화면에 설치하면 더 편해요</div>
+          <div class="text-sm text-gray-500 dark:text-gray-300 mt-2" id="install-desc"></div>
+        </div>
+        <button id="install-close" class="text-gray-400 text-xl leading-none" aria-label="닫기">×</button>
+      </div>
+
+      <div class="mt-4 flex gap-2">
+        <button id="install-btn"
+          class="hidden flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold active:scale-[0.99]">
+          설치하기
+        </button>
+        <button id="install-ok"
+          class="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100
+                 font-semibold active:scale-[0.99]">
+          괜찮아요
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- site.js (Theme/Overlay 등 공통) -->
+  <script defer src="/js/site.js"></script>
+
+  <script>
+    // ---------- Utils ----------
+    const qs = (id) => document.getElementById(id);
+    const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
+
+    const safeJSON = {
+      read(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return fallback;
+          return JSON.parse(raw);
+        } catch (_) {
+          return fallback;
+        }
+      },
+    };
+
+    const countDoneMap = (map) => Object.values(map || {}).filter(Boolean).length;
+
+    function setProgressUI(prefix, done, total) {
+      done = clamp(done, 0, total);
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      const textEl = qs(`${prefix}-progress-text`);
+      const barEl  = qs(`${prefix}-progress-bar`);
+      if (!textEl || !barEl) return;
+
+      textEl.textContent = `${done} / ${total} (${pct}%)`;
+      barEl.style.width = `${(done / total) * 100}%`;
+
+      if (pct >= 100) {
+        barEl.classList.remove("bg-blue-600");
+        barEl.classList.add("bg-emerald-600");
+      }
+    }
+
+    // ---------- Year ----------
+    qs("year").textContent = new Date().getFullYear();
+
+    // ---------- SW ----------
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js");
+    }
+
+    // ---------- Share ----------
+    qs("share-btn")?.addEventListener("click", async () => {
+      const url = location.origin + "/";
+      const title = "날마다성경";
+      const text = "365일 일독 · 52주 암송 (주평강교회)";
+
+      try {
+        if (navigator.share) {
+          await navigator.share({ title, text, url });
+        } else {
+          await navigator.clipboard.writeText(String(url));
+          alert("링크를 복사했어요!");
+        }
+      } catch (_) {}
+    });
+
+  // ---------- Home Progress ----------
+  async function initHomeProgress() {
+    // 1) 52주 암송 (✅ year 유동 대응)
+    try {
+      const memoData = await fetch("/memorize/data.json", { cache: "no-store" }).then(r => r.json());
+      const totalWeeks = Array.isArray(memoData?.weeks) ? memoData.weeks.length : 52;
+
+      const currentYear = new Date().getFullYear();
+
+      // localStorage에 저장된 memorized:* 키 중에서 "현재 연도 우선, 없으면 완료가 가장 많은 연도" 선택
+      const memoKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("memorized:")) memoKeys.push(k);
+      }
+
+      const pickYear = () => {
+        // 1) 현재 연도 데이터가 있으면 그걸 사용
+        if (localStorage.getItem(`memorized:${currentYear}`)) return currentYear;
+
+        // 2) 없으면 memorized:* 중 가장 많이 완료된 연도 선택
+        let bestYear = currentYear;
+        let bestCount = -1;
+
+        for (const k of memoKeys) {
+          const y = parseInt(k.split(":")[1], 10);
+          const map = safeJSON.read(k, {});
+          const c = countDoneMap(map);
+          if (c > bestCount) {
+            bestCount = c;
+            bestYear = Number.isFinite(y) ? y : currentYear;
+          }
+        }
+        return bestYear;
+      };
+
+      const year = pickYear();
+      const doneMap = safeJSON.read(`memorized:${year}`, {});
+      setProgressUI("memo", countDoneMap(doneMap), totalWeeks);
+    } catch (_) {
+      setProgressUI("memo", 0, 52);
+    }
+
+    // 2) 365일 일독 (기존 그대로)
+    try {
+      const plan = await fetch("/bible-read/data.json", { cache: "no-store" }).then(r => r.json());
+      const totalDays = Array.isArray(plan) ? plan.length : 365;
+
+      const p = safeJSON.read("bibleRead:progress:v2", { activeCycle: 1, cycles: {} });
+      const cycle = String(p.activeCycle || 1);
+      const doneMap = p.cycles?.[cycle]?.completed || {};
+      setProgressUI("read", countDoneMap(doneMap), totalDays);
+    } catch (_) {
+      setProgressUI("read", 0, 365);
+    }
+  }
+
+  initHomeProgress();
+
+    // ---------- Install Help ----------
+    const overlay = qs("install-overlay");
+    const installBtn = qs("install-btn");
+    const installOk = qs("install-ok");
+    const installClose = qs("install-close");
+    const installDesc = qs("install-desc");
+
+    let deferredPrompt = null;
+
+    function isStandalone() {
+      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    }
+    function isIOS() {
+      return /iphone|ipad|ipod/i.test(navigator.userAgent);
+    }
+
+    const SEEN_KEY = "installHelpSeen:v1";
+
+    function openInstallHelp() {
+      if (isStandalone()) return;
+      if (localStorage.getItem(SEEN_KEY)) return;
+      localStorage.setItem(SEEN_KEY, "1");
+      overlay.classList.remove("hidden");
+    }
+    function closeInstallHelp() {
+      overlay.classList.add("hidden");
+    }
+
+    installOk?.addEventListener("click", closeInstallHelp);
+    installClose?.addEventListener("click", closeInstallHelp);
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+
+      installBtn.classList.remove("hidden");
+      installDesc.textContent = "‘설치하기’를 누르면 홈화면에 앱으로 추가할 수 있어요.";
+      openInstallHelp();
+    });
+
+    installBtn?.addEventListener("click", async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      closeInstallHelp();
+    });
+
+    window.addEventListener("load", () => {
+      if (isStandalone()) return;
+      if (isIOS()) {
+        installBtn.classList.add("hidden");
+        installDesc.textContent = "Safari에서 공유 버튼(□↑) → ‘홈 화면에 추가’를 눌러 설치할 수 있어요.";
+        openInstallHelp();
+      }
+    });
+
+    window.addEventListener("appinstalled", () => closeInstallHelp());
+
+    // ---------- Refresh progress on BFCache / focus ----------
+    window.addEventListener("pageshow", () => initHomeProgress());
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) initHomeProgress(); });
+    window.addEventListener("focus", () => initHomeProgress());
+
+    // ---------- Theme Toggle bind (Home only) ----------
+    // site.js 로드 후 사용 가능
+    window.addEventListener("load", () => {
+      window.SiteTheme?.bindToggleButton("#theme-toggle");
+    });
+  </script>
+</body>
+</html>

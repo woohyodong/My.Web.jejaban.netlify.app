@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>제자반 신앙생활 · 중보기도</title>
+  <style>@view-transition {navigation: auto;}::view-transition-group {animation-duration: 0.35s;}</style>
+
+  <meta name="description" content="제자반 신앙생활 웹앱에서 중보기도문을 이 기기에 저장하고 공개 또는 가림 상태로 관리하세요." />
+  <meta name="keywords" content="제자반, 중보기도, 기도문, 기기 저장, 비공개 기도" />
+  <link rel="canonical" href="https://jejaban.netlify.app/prayer/" />
+
+  <link href="/favicon.ico?v=2" rel="shortcut icon" type="image/x-icon" />
+  <link rel="icon" href="/favicon.ico?v=2" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#2563EB">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: "class" };</script>
+  <script>
+    (function () {
+      if (location.pathname === "/prayer") location.replace("/prayer/");
+    })();
+  </script>
+</head>
+<body class="bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <div class="max-w-md mx-auto p-4 pb-28 space-y-4">
+    <header class="pt-2 flex items-start justify-between gap-3">
+      <button id="go-home" class="text-sm px-2 py-1 rounded-lg bg-white dark:bg-gray-800 shadow active:scale-[0.99]">🏠 홈</button>
+      <div class="text-center flex-1">
+        <h1 class="text-xl font-extrabold">중보기도</h1>
+      </div>
+      <button id="open-form" class="text-sm px-3 py-2 rounded-lg bg-blue-600 text-white shadow active:scale-[0.99]">＋ 작성</button>
+    </header>
+
+    <section class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 space-y-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="text-sm font-semibold">보관 현황</div>
+        <div id="stats-total" class="text-base font-extrabold">0</div>
+        <div class="rounded-full bg-blue-50 dark:bg-blue-950/40 px-3 py-1 text-xs text-blue-800 dark:text-blue-100">
+          공개 <span id="stats-public" class="ml-1 font-bold">0</span>
+        </div>
+        <div class="rounded-full bg-amber-50 dark:bg-amber-950/40 px-3 py-1 text-xs text-amber-800 dark:text-amber-100">
+          잠금 <span id="stats-private" class="ml-1 font-bold">0</span>
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 dark:text-gray-300">공개 기도문은 바로 열리고, 잠금 기도문은 펼칠 때 비밀번호를 확인합니다.</div>
+      <div class="flex items-center gap-2">
+        <button id="expand-all" type="button" class="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-semibold">모두 펼치기</button>
+        <button id="collapse-all" type="button" class="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-semibold">모두 접기</button>
+      </div>
+    </section>
+
+    <section id="empty-state" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow p-8 text-center text-sm text-gray-500 dark:text-gray-300">
+      아직 저장된 중보기도가 없습니다.<br />첫 번째 기도문을 작성해 보세요.
+    </section>
+
+    <section id="prayer-list" class="space-y-3"></section>
+
+    <section class="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 rounded-2xl p-4 text-sm leading-relaxed text-blue-900 dark:text-blue-100">
+      <ul class="list-disc pl-5 space-y-1">
+        <li>기도문은 지금 사용 중인 <span class="font-semibold">이 기기</span>에 저장됩니다.</li>
+        <li>기본값은 <span class="font-semibold">공개</span>이며, 가려서 저장하면 내용이 바로 보이지 않습니다.</li>
+        <li>가려진 기도문은 <span class="font-semibold">비밀번호를 넣으면 다시 볼 수 있습니다.</span></li>
+      </ul>
+    </section>
+  </div>
+
+  <div id="form-modal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-black/40" data-close-form></div>
+    <div class="absolute inset-x-0 bottom-0 mx-auto max-w-md p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-3">
+          <div>
+            <div id="form-title" class="text-sm font-extrabold">중보기도 작성</div>
+            <div class="text-xs text-gray-500 dark:text-gray-300 mt-1">공개할지, 가려 둘지와 비밀번호를 함께 정할 수 있어요.</div>
+          </div>
+          <button style="white-space: nowrap;" class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 font-semibold" data-close-form>닫기</button>
+        </div>
+        <form id="prayer-form" class="p-4 space-y-4">
+          <input type="hidden" id="prayer-id" />
+          <div>
+            <label for="prayer-title" class="block text-sm font-semibold mb-1">제목</label>
+            <input id="prayer-title" type="text" maxlength="80" placeholder="예: 가정을 위한 기도" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-3 text-sm" required />
+          </div>
+          <div>
+            <label for="prayer-content" class="block text-sm font-semibold mb-1">기도문</label>
+            <textarea id="prayer-content" rows="7" placeholder="기도 내용을 입력해 주세요." class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-3 text-sm resize-y" required></textarea>
+          </div>
+          <div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold">가려서 저장</div>
+                <div class="text-xs text-gray-500 dark:text-gray-300 mt-1">기본은 공개입니다.</div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input id="prayer-private" type="checkbox" class="sr-only peer">
+                <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 rounded-full peer peer-checked:bg-amber-500 transition"></div>
+                <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+              </label>
+            </div>
+            <div>
+              <label for="prayer-password" class="block text-sm font-semibold mb-1">열기 비밀번호</label>
+              <input id="prayer-password" type="password" autocomplete="new-password" placeholder="가려서 저장할 때만 입력" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-3 text-sm" />
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-300">가려서 저장할 때만 필요합니다. 공개 글은 비워 두세요.</p>
+            </div>
+          </div>
+          <div id="form-status" class="text-xs text-red-500 min-h-4"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="rounded-xl border border-gray-200 dark:border-gray-700 py-3 font-semibold" data-close-form>취소</button>
+            <button type="submit" class="rounded-xl bg-blue-600 text-white py-3 font-semibold shadow-sm">저장</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="unlock-modal" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-black/40" data-close-unlock></div>
+    <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 mx-auto max-w-md p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-3">
+          <div>
+            <div class="text-sm font-extrabold">기도문 열기</div>
+            <div id="unlock-title" class="text-xs text-gray-500 dark:text-gray-300 mt-1">비밀번호를 입력해 주세요.</div>
+          </div>
+          <button class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 font-semibold" data-close-unlock>닫기</button>
+        </div>
+        <form id="unlock-form" class="p-4 space-y-4">
+          <input type="hidden" id="unlock-id" />
+          <input id="unlock-password" type="password" autocomplete="current-password" placeholder="비밀번호" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-3 text-sm" required />
+          <div id="unlock-status" class="text-xs text-red-500 min-h-4"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="rounded-xl border border-gray-200 dark:border-gray-700 py-3 font-semibold" data-close-unlock>취소</button>
+            <button id="unlock-submit" type="submit" class="rounded-xl bg-amber-500 text-white py-3 font-semibold shadow-sm">열기</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script defer src="/js/site.js"></script>
+  <script defer src="/prayer/app.js"></script>
+</body>
+</html>
