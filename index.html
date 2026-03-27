@@ -13,23 +13,23 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
 
   <!-- Primary SEO -->
-  <title>제자반 신앙생활 | 42주 성경 1독 · 32주 암송 · 중보기도</title>
-  <meta name="description" content="제자반 신앙생활 웹앱으로 42주 성경 1독과 32주 암송, 중보기도를 한 곳에서 관리하세요. 읽기 진도와 암송 체크를 이 기기에 편하게 저장할 수 있어요." />
-  <meta name="keywords" content="제자반, 42주 성경 1독, 32주 암송, 중보기도, 성경 읽기, 성경 암송, 신앙생활, 웹앱, 교회 앱, 제자훈련" />
+  <title>제자훈련 신앙생활 | 42주 성경 1독 · 32주 암송 · 중보기도</title>
+  <meta name="description" content="제자훈련 신앙생활 웹앱으로 42주 성경 1독과 32주 암송, 중보기도를 한 곳에서 관리하세요. 읽기 진도와 암송 체크를 이 기기에 편하게 저장할 수 있어요." />
+  <meta name="keywords" content="제자훈련, 42주 성경 1독, 32주 암송, 중보기도, 성경 읽기, 성경 암송, 신앙생활, 웹앱, 교회 앱" />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://jejaban.netlify.app/" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="제자반 신앙생활" />
-  <meta property="og:title" content="제자반 신앙생활 | 42주 성경 1독 · 32주 암송 · 중보기도" />
-  <meta property="og:description" content="42주 성경 1독과 32주 암송, 중보기도를 함께 관리하는 제자반 신앙생활 웹앱입니다." />
+  <meta property="og:site_name" content="제자훈련 신앙생활" />
+  <meta property="og:title" content="제자훈련 신앙생활 | 42주 성경 1독 · 32주 암송 · 중보기도" />
+  <meta property="og:description" content="42주 성경 1독과 32주 암송, 중보기도를 함께 관리하는 제자훈련 신앙생활 웹앱입니다." />
   <meta property="og:url" content="https://jejaban.netlify.app/" />
   <meta property="og:image" content="https://jejaban.netlify.app/icons/icon-512.png" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="제자반 신앙생활 | 42주 성경 1독 · 32주 암송 · 중보기도" />
+  <meta name="twitter:title" content="제자훈련 신앙생활 | 42주 성경 1독 · 32주 암송 · 중보기도" />
   <meta name="twitter:description" content="42주 성경 1독 · 32주 암송 · 중보기도 웹앱" />
   <meta name="twitter:image" content="https://jejaban.netlify.app/icons/icon-512.png" />
 
@@ -53,9 +53,9 @@
 
       <div class="text-center">
         <h1 class="text-xl font-extrabold text-center flex-1">
-          <strong id="year">2026</strong>년 제자반 신앙생활
+          <strong id="year">2026</strong>년 제자훈련 신앙생활
         </h1>
-        <small class="">42주 성경 1독 · 32주 암송 · 중보기도</small>
+        <small class="">ACTS 2026! 다시 복음으로!</small>
       </div>
       <button id="open-settings"
         class="w-10 h-10 grid place-items-center rounded-xl bg-white dark:bg-gray-800 shadow
@@ -197,88 +197,9 @@
             </div>
           </section>
 
-          <section class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-            <div>
-              <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">32주 암송 시작 주일</div>
-              <div class="text-xs text-gray-500 dark:text-gray-300 mt-1">메인에서 정한 일요일을 기준으로 1주차와 전체 일정이 계산돼요.</div>
-            </div>
-
-            <div id="global-start-sunday-summary"
-              class="rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 px-4 py-3 text-sm text-gray-700 dark:text-gray-100">
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-              <button id="open-start-sunday-helper"
-                class="rounded-xl bg-blue-600 text-white py-3 font-semibold shadow-sm active:scale-[0.99]">
-                날짜 선택
-              </button>
-              <button id="reset-start-sunday"
-                class="rounded-xl border border-gray-200 dark:border-gray-700 py-3 font-semibold active:scale-[0.99]">
-                기본값 사용
-              </button>
-            </div>
-
-            <div id="global-start-sunday-status" class="text-xs text-gray-500 dark:text-gray-300"></div>
-          </section>
         </div>
       </div>
     </aside>
-  </div>
-
-  <div id="start-sunday-helper-modal" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true">
-    <div id="start-sunday-helper-overlay" class="absolute inset-0 bg-black/40"></div>
-
-    <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 mx-auto max-w-md p-4">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-          <div class="text-sm font-extrabold text-gray-900 dark:text-gray-100">시작 주일 선택</div>
-          <div class="text-xs text-gray-500 dark:text-gray-300 mt-1">
-            달력에서 날짜를 고르면 32주 암송의 1주차 시작일로 적용됩니다. 일요일만 선택할 수 있어요.
-          </div>
-        </div>
-
-        <div class="p-4 space-y-3">
-          <div class="grid grid-cols-[1fr_auto] gap-2">
-            <input id="start-sunday-helper-input" type="date"
-              class="w-full rounded-xl border border-gray-200 dark:border-gray-700
-                     bg-white dark:bg-gray-900
-                     px-3 py-3 text-sm text-gray-900 dark:text-gray-100" />
-            <button id="start-sunday-picker-btn"
-              class="rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 font-semibold active:scale-[0.99]">
-              달력
-            </button>
-          </div>
-
-          <div class="grid grid-cols-3 gap-2">
-            <button type="button" data-start-sunday-preset="default"
-              class="rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-semibold active:scale-[0.99]">
-              1월 첫째 주일
-            </button>
-            <button type="button" data-start-sunday-preset="current"
-              class="rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-semibold active:scale-[0.99]">
-              이번 주일
-            </button>
-            <button type="button" data-start-sunday-preset="next"
-              class="rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-semibold active:scale-[0.99]">
-              다음 주일
-            </button>
-          </div>
-
-          <div id="start-sunday-helper-status" class="text-xs text-gray-500 dark:text-gray-300"></div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <button id="start-sunday-helper-skip"
-              class="rounded-xl border border-gray-200 dark:border-gray-700 py-3 font-semibold active:scale-[0.99]">
-              기본값 사용
-            </button>
-            <button id="start-sunday-helper-confirm"
-              class="rounded-xl bg-blue-600 text-white py-3 font-semibold shadow-sm active:scale-[0.99]">
-              적용하기
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Floating Share Button -->
@@ -293,7 +214,7 @@
     <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl p-5 shadow-lg">
       <div class="flex items-start justify-between gap-3">
         <div>
-          <div class="text-sm text-gray-500 dark:text-gray-300">제자반 신앙생활</div>
+          <div class="text-sm text-gray-500 dark:text-gray-300">제자훈련 신앙생활</div>
           <div class="text-lg font-bold mt-1">홈화면에 설치하면 더 편해요</div>
           <div class="text-sm text-gray-500 dark:text-gray-300 mt-2" id="install-desc"></div>
         </div>
@@ -336,90 +257,6 @@
         localStorage.setItem(key, JSON.stringify(value));
       },
     };
-
-    const MEMORIZE_OPT_KEY = "memorize:options:v1";
-    const MEMORIZE_DEFAULT_OPTIONS = {
-      autoNextAfterDoneCurrent: false,
-      startSunday: "",
-      startSundayPromptSeen: false,
-    };
-
-    function getMemorizeOptions() {
-      return { ...MEMORIZE_DEFAULT_OPTIONS, ...safeJSON.read(MEMORIZE_OPT_KEY, MEMORIZE_DEFAULT_OPTIONS) };
-    }
-
-    function setMemorizeOptions(value) {
-      safeJSON.write(MEMORIZE_OPT_KEY, { ...MEMORIZE_DEFAULT_OPTIONS, ...value });
-    }
-
-    function startOfDay(value) {
-      const d = new Date(value);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    }
-
-    function formatDateInputValue(date) {
-      const d = startOfDay(date);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
-    }
-
-    function parseDateInputValue(value) {
-      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (!match) return null;
-      const [, yyyy, mm, dd] = match;
-      const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-      if (
-        date.getFullYear() !== Number(yyyy) ||
-        date.getMonth() !== Number(mm) - 1 ||
-        date.getDate() !== Number(dd)
-      ) {
-        return null;
-      }
-      return startOfDay(date);
-    }
-
-    function computeFirstSunday(year) {
-      const d = new Date(year, 0, 1);
-      const offset = (7 - d.getDay()) % 7;
-      d.setDate(d.getDate() + offset);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    }
-
-    function isSunday(date) {
-      return date instanceof Date && !Number.isNaN(date.getTime()) && date.getDay() === 0;
-    }
-
-    function resolveStartSunday(year, value) {
-      const fallback = computeFirstSunday(year);
-      if (!value) return fallback;
-      const parsed = parseDateInputValue(value);
-      if (!parsed) return fallback;
-      if (parsed.getFullYear() !== year) return fallback;
-      if (!isSunday(parsed)) return null;
-      return parsed;
-    }
-
-    function fmtKOR(date) {
-      const d = startOfDay(date);
-      const days = ["일", "월", "화", "수", "목", "금", "토"];
-      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} (${days[d.getDay()]})`;
-    }
-
-    function getCurrentSunday(baseDate = new Date()) {
-      const d = startOfDay(baseDate);
-      d.setDate(d.getDate() - d.getDay());
-      return d;
-    }
-
-    function getNextSunday(baseDate = new Date()) {
-      const d = getCurrentSunday(baseDate);
-      d.setDate(d.getDate() + 7);
-      return d;
-    }
 
     const countDoneMap = (map) => Object.values(map || {}).filter(Boolean).length;
 
@@ -477,7 +314,7 @@
     const APP_PACKAGE = "app.netlify.jejaban.twa";
     const PLAY_URL = `https://play.google.com/store/apps/details?id=${encodeURIComponent(APP_PACKAGE)}`;
 
-    const title = "제자반 신앙생활";
+    const title = "제자훈련 신앙생활";
     const text = "42주 성경 1독 · 32주 암송 · 중보기도";
     const siteUrl = `${location.origin}/`;
 
@@ -606,18 +443,6 @@
     const settingsOverlay = qs("settings-overlay");
     const openSettingsBtn = qs("open-settings");
     const closeSettingsBtn = qs("close-settings");
-    const startSundayModal = qs("start-sunday-helper-modal");
-    const startSundayOverlay = qs("start-sunday-helper-overlay");
-    const startSundaySummary = qs("global-start-sunday-summary");
-    const startSundayStatus = qs("global-start-sunday-status");
-    const startSundayInput = qs("start-sunday-helper-input");
-    const startSundayModalStatus = qs("start-sunday-helper-status");
-    const startSundayOpenBtn = qs("open-start-sunday-helper");
-    const startSundayResetBtn = qs("reset-start-sunday");
-    const startSundayPickerBtn = qs("start-sunday-picker-btn");
-    const startSundayConfirmBtn = qs("start-sunday-helper-confirm");
-    const startSundaySkipBtn = qs("start-sunday-helper-skip");
-
     function lockScroll(lock) {
       document.body.style.overflow = lock ? "hidden" : "";
     }
@@ -638,109 +463,13 @@
       window.SiteOverlay?.close("home-settings");
     }
 
-    function paintStartSundaySummary(message = "") {
-      const opt = getMemorizeOptions();
-      const resolved = resolveStartSunday(activeYear, opt.startSunday) || computeFirstSunday(activeYear);
-      const isDefault = !opt.startSunday;
-      if (startSundaySummary) {
-        startSundaySummary.textContent = isDefault
-          ? `현재 적용: ${fmtKOR(resolved)} (기본값: 1월 첫째 주일)`
-          : `현재 적용: ${fmtKOR(resolved)}`;
-      }
-      if (startSundayStatus) {
-        startSundayStatus.textContent = message || "메인에서 바꾸면 32주 암송 페이지에 바로 같은 기준으로 반영돼요.";
-      }
-    }
-
-    function closeStartSundayHelper() {
-      startSundayModal?.classList.add("hidden");
-      if (settingsDrawer?.classList.contains("hidden")) lockScroll(false);
-    }
-
-    function openStartSundayHelper() {
-      if (!startSundayModal || !startSundayInput || !startSundayModalStatus) return;
-      const opt = getMemorizeOptions();
-      startSundayInput.min = `${activeYear}-01-01`;
-      startSundayInput.max = `${activeYear}-12-31`;
-      startSundayInput.value = opt.startSunday || "";
-      startSundayModalStatus.textContent = `기본값은 ${fmtKOR(computeFirstSunday(activeYear))}입니다.`;
-      startSundayModal.classList.remove("hidden");
-      lockScroll(true);
-      setTimeout(() => startSundayInput.focus(), 50);
-    }
-
-    function applyGlobalStartSunday(startSundayValue, { markPromptSeen = false } = {}) {
-      const resolved = resolveStartSunday(activeYear, startSundayValue);
-      if (!resolved) {
-        const msg = "일요일 날짜만 선택할 수 있어요. 달력에서 주일을 골라 주세요.";
-        if (startSundayModalStatus) startSundayModalStatus.textContent = msg;
-        paintStartSundaySummary(msg);
-        return { ok: false, message: msg };
-      }
-
-      const nextOptions = {
-        ...getMemorizeOptions(),
-        startSunday: startSundayValue || "",
-        startSundayPromptSeen: markPromptSeen ? true : getMemorizeOptions().startSundayPromptSeen,
-      };
-      setMemorizeOptions(nextOptions);
-
-      const msg = `시작 주일이 ${fmtKOR(resolved)}로 적용되었어요.`;
-      if (startSundayModalStatus) startSundayModalStatus.textContent = msg;
-      paintStartSundaySummary(msg);
-      return { ok: true, message: msg };
-    }
-
     openSettingsBtn?.addEventListener("click", openSettingsDrawer);
     closeSettingsBtn?.addEventListener("click", () => window.SiteOverlay?.close("home-settings") ?? closeSettingsDrawer());
     settingsOverlay?.addEventListener("click", () => window.SiteOverlay?.close("home-settings") ?? closeSettingsDrawer());
 
-    startSundayOpenBtn?.addEventListener("click", openStartSundayHelper);
-    startSundayResetBtn?.addEventListener("click", () => {
-      applyGlobalStartSunday("", { markPromptSeen: true });
-    });
-    startSundayOverlay?.addEventListener("click", () => {
-      applyGlobalStartSunday("", { markPromptSeen: true });
-      closeStartSundayHelper();
-    });
-    startSundaySkipBtn?.addEventListener("click", () => {
-      applyGlobalStartSunday("", { markPromptSeen: true });
-      closeStartSundayHelper();
-    });
-    startSundayConfirmBtn?.addEventListener("click", () => {
-      const result = applyGlobalStartSunday(String(startSundayInput?.value || "").trim(), { markPromptSeen: true });
-      if (!result.ok) return;
-      closeStartSundayHelper();
-    });
-    startSundayPickerBtn?.addEventListener("click", () => {
-      try {
-        startSundayInput?.showPicker?.();
-      } catch (_) {
-        startSundayInput?.focus();
-      }
-    });
-    document.querySelectorAll("[data-start-sunday-preset]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const preset = btn.getAttribute("data-start-sunday-preset");
-        const date =
-          preset === "current"
-            ? getCurrentSunday()
-            : preset === "next"
-              ? getNextSunday()
-              : computeFirstSunday(activeYear);
-        if (!startSundayInput) return;
-        startSundayInput.value = formatDateInputValue(date);
-        startSundayModalStatus.textContent = `${fmtKOR(date)}을(를) 선택했어요.`;
-      });
-    });
-
     window.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
       if (!settingsDrawer?.classList.contains("hidden")) closeSettingsDrawer();
-      if (!startSundayModal?.classList.contains("hidden")) {
-        applyGlobalStartSunday("", { markPromptSeen: true });
-        closeStartSundayHelper();
-      }
     });
 
     // ---------- Install Help ----------
@@ -805,10 +534,6 @@
     // ---------- Refresh progress on BFCache / focus ----------
     window.addEventListener("pageshow", () => {
   initHomeProgress();
-  paintStartSundaySummary();
-  if (!getMemorizeOptions().startSundayPromptSeen && !getMemorizeOptions().startSunday) {
-    openStartSundayHelper();
-  }
       updatePrayerCard();
     });
     document.addEventListener("visibilitychange", () => {

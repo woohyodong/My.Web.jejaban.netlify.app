@@ -410,9 +410,10 @@
 
       const bookNum = idx.shortToBook.get(parsed.short);
       if (!bookNum) continue;
+      const parts = expandWholeBookParts(parsed, idx, bookNum);
 
       // parts를 chapter 단위로 확장
-      for (const part of parsed.parts || []) {
+      for (const part of parts) {
         for (let ch = part.chStart; ch <= part.chEnd; ch++) {
           out.push({ token, short: parsed.short, bookNum, chapter: ch });
         }
@@ -621,19 +622,24 @@
     const shortToBook = new Map();
     const bookToLong = new Map();
     const bookToShort = new Map();
+    const bookToMaxChapter = new Map();
     const bcToVerses = new Map(); // "book:chapter" -> [{p,s}]
 
     for (const r of rows) {
       if (!shortToBook.has(r.short_label)) shortToBook.set(r.short_label, r.book);
       if (!bookToLong.has(r.book)) bookToLong.set(r.book, r.long_label);
       if (!bookToShort.has(r.book)) bookToShort.set(r.book, r.short_label);
+      bookToMaxChapter.set(
+        r.book,
+        Math.max(Number(bookToMaxChapter.get(r.book) || 0), Number(r.chapter || 0))
+      );
 
       const key = `${r.book}:${r.chapter}`;
       if (!bcToVerses.has(key)) bcToVerses.set(key, []);
       bcToVerses.get(key).push({ p: r.paragraph, s: r.sentence });
     }
 
-    return { shortToBook, bookToLong, bookToShort, bcToVerses };
+    return { shortToBook, bookToLong, bookToShort, bookToMaxChapter, bcToVerses };
   };
 
   const loadBibleDb = async () => {
@@ -658,17 +664,17 @@
   // =========================================================
   // 5) Bible Token Parser + Modal Renderer
   // =========================================================
-  // "에9,10" / "눅1:1-38" / "시119:1-24" / "창9-10" 지원
+  // "에9,10" / "눅1:1-38" / "시119:1-24" / "창9-10" / "창1~2" / "옵" 지원
   const parseReadingToken = (token) => {
     const raw = String(token || "").trim();
     if (!raw) return null;
 
-    const m = raw.match(/^([가-힣]+)\s*(.+)$/);
+    const m = raw.match(/^([가-힣]+)\s*(.*)$/);
     if (!m) return null;
 
     const short = m[1].trim();
     const rest = m[2].trim();
-    if (!rest) return null;
+    if (!rest) return { short, parts: [], wholeBook: true };
 
     const segs = rest.split(/\s*,\s*/).filter(Boolean);
     if (!segs.length) return null;
@@ -677,7 +683,7 @@
 
     for (const seg of segs) {
       if (seg.includes(":")) {
-        const mm = seg.match(/^(\d+)\s*:\s*(\d+)(?:\s*-\s*(\d+))?$/);
+        const mm = seg.match(/^(\d+)\s*:\s*(\d+)(?:\s*[~-]\s*(\d+))?$/);
         if (!mm) return null;
         const ch = Number(mm[1]);
         const vStart = Number(mm[2]);
@@ -693,7 +699,7 @@
         continue;
       }
 
-      const mm = seg.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+      const mm = seg.match(/^(\d+)(?:\s*[~-]\s*(\d+))?$/);
       if (!mm) return null;
       const chStart = Number(mm[1]);
       const chEnd = mm[2] ? Number(mm[2]) : chStart;
@@ -709,7 +715,14 @@
       (a, b) => a.chStart - b.chStart || (a.vStart ?? 0) - (b.vStart ?? 0)
     );
 
-    return { short, parts };
+    return { short, parts, wholeBook: false };
+  };
+
+  const expandWholeBookParts = (parsed, idx, bookNum) => {
+    if (!parsed?.wholeBook) return parsed?.parts || [];
+    const maxChapter = Number(idx?.bookToMaxChapter?.get(bookNum) || 0);
+    if (!Number.isFinite(maxChapter) || maxChapter < 1) return [];
+    return [{ chStart: 1, chEnd: maxChapter }];
   };
 
   const renderReadingsHTML = (readings) => {
@@ -765,12 +778,12 @@
       return;
     }
 
-    const firstPart = parsed.parts?.[0];
-    const firstChapter = firstPart?.chStart;
-
     try {
       const idx = await loadBibleDb();
       const bookNum = idx.shortToBook.get(parsed.short);
+      const parts = expandWholeBookParts(parsed, idx, bookNum);
+      const firstPart = parts?.[0];
+      const firstChapter = firstPart?.chStart;
 
       currentBibleCtx = {
         token,
@@ -792,17 +805,19 @@
 
       const longLabel = idx.bookToLong.get(bookNum) || parsed.short;
 
-      const labelParts = parsed.parts.map((p) => {
-        const ch = p.chStart === p.chEnd ? `${p.chStart}` : `${p.chStart}-${p.chEnd}`;
+      const labelParts = parts.map((p) => {
+        const ch = p.chStart === p.chEnd ? `${p.chStart}` : `${p.chStart}~${p.chEnd}`;
         if (p.vStart != null) return `${p.chStart}:${p.vStart}-${p.vEnd}`;
         return ch;
       });
 
-      qs("#bible-modal-subtitle").text(`${longLabel} ${labelParts.join(", ")}`);
+      qs("#bible-modal-subtitle").text(
+        parsed.wholeBook ? `${longLabel} 전체` : `${longLabel} ${labelParts.join(", ")}`
+      );
 
       let html = "";
 
-      for (const part of parsed.parts) {
+      for (const part of parts) {
         for (let ch = part.chStart; ch <= part.chEnd; ch++) {
           let verses = idx.bcToVerses.get(`${bookNum}:${ch}`) || [];
 
@@ -882,14 +897,16 @@
     try {
       const raw = localStorage.getItem(OPT_KEY);
       if (raw) {
+        const parsed = JSON.parse(raw);
         return {
-          autoNextAfterDoneToday: false,
+          autoNextAfterDoneSelection:
+            parsed.autoNextAfterDoneSelection ?? parsed.autoNextAfterDoneToday ?? false,
           keepScreenAwake: true,
-          ...JSON.parse(raw),
+          ...parsed,
         };
       }
     } catch {}
-    return { autoNextAfterDoneToday: false, keepScreenAwake: true };
+    return { autoNextAfterDoneSelection: false, keepScreenAwake: true };
   };
 
   const saveOptions = (opt) => localStorage.setItem(OPT_KEY, JSON.stringify(opt));
@@ -912,13 +929,6 @@
     const u = new URL(location.href);
     u.searchParams.set("day", String(day));
     history.replaceState({}, "", u);
-  };
-
-  const getTodayMMDD = () => {
-    const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${mm}-${dd}`;
   };
 
   const normalizePlan = (raw) => {
@@ -985,12 +995,6 @@
     `);
   };
 
-  const getTodayDay = (PLAN) => {
-    const mmdd = getTodayMMDD();
-    const idx = PLAN.findIndex((x) => x.date === mmdd);
-    return idx >= 0 ? idx + 1 : DAY_MIN;
-  };
-
   const findNextUndoneDay = (p, cycle, fromDay, days) => {
     const completed = p.cycles[String(cycle)]?.completed || {};
     for (let d = fromDay + 1; d <= days; d++) if (!completed[String(d)]) return d;
@@ -1021,13 +1025,6 @@
     return next;
   };
 
-  const pickAutoDay = (p, cycle, todayDay, days) => {
-    ensureCycle(p, cycle);
-    const doneToday = !!p.cycles[String(cycle)]?.completed?.[String(todayDay)];
-    if (!doneToday) return todayDay;
-    return findNextUndoneDay(p, cycle, todayDay, days);
-  };
-
   // =========================================================
   // 7) UI Render (Main / Header / Progress / Nav)
   // =========================================================
@@ -1054,7 +1051,7 @@
         </div>
 
         <div class="mt-2 text-xs text-gray-500 dark:text-gray-300">
-          전체 ${days}일 분량 중 ${selectedDay}일차
+          42주 읽기표 중 ${selectedDay}번째 분량
         </div>
 
         <div class="mt-3 text-[17px] leading-relaxed break-words text-gray-900 dark:text-gray-100 flex flex-wrap gap-2 gap-y-4">
@@ -1106,14 +1103,14 @@
           const p3 = loadProgress();
           ensureCycle(p3, state.cycle);
 
-          const nextDay = pickAutoDay(p3, state.cycle, state.todayDay, days);
+          const nextDay = state.getDefaultDay();
           state.setSelectedDay(nextDay);
           return;
         }
 
         // 옵션: 완료 후 다음 미완료로 자동 진행
         const opt = loadOptions();
-        if (opt.autoNextAfterDoneToday && nowDone) {
+        if (opt.autoNextAfterDoneSelection && nowDone) {
           state.setSelectedDay(findNextUndoneDay(p2, cycle, selectedDay, days)); // ✅ 변경: selectedDay 기준
           return;
         }
@@ -1142,7 +1139,7 @@
         const url = new URL(location.href);
         url.searchParams.set("day", String(state.selectedDay));
         const shareData = {
-          title: "제자반 신앙생활 · 42주 성경 1독",
+          title: "제자훈련 신앙생활 · 42주 성경 1독",
           text: "읽기 분량을 함께 확인해요",
           url: url.toString(),
         };
@@ -1194,7 +1191,7 @@
 
     qs("#today-btn")
       .off("click")
-      .on("click", () => state.setSelectedDay(state.todayDay));
+      .on("click", () => state.setSelectedDay(state.getDefaultDay()));
   };
 
   // 옵션 UI가 있는 경우에만 연결(없으면 무시)
@@ -1202,11 +1199,11 @@
     const $opt = qs("#opt-auto-next");
     const opt = loadOptions();
     if ($opt.length) {
-      $opt.prop("checked", !!opt.autoNextAfterDoneToday);
+      $opt.prop("checked", !!opt.autoNextAfterDoneSelection);
       $opt.off("change").on("change", (e) => {
         const next = {
           ...loadOptions(),
-          autoNextAfterDoneToday: !!e.target.checked,
+          autoNextAfterDoneSelection: !!e.target.checked,
         };
         saveOptions(next);
       });
@@ -1295,7 +1292,6 @@
       }
 
       const days = PLAN.length;
-      const todayDay = getTodayDay(PLAN);
 
       const p = loadProgress();
       ensureCycle(p, p.activeCycle);
@@ -1310,9 +1306,7 @@
       initOptions();
 
       const queryDay = getQueryDay();
-      const opt = loadOptions();
-
-      // 초기 day 선택: 쿼리가 없으면 가장 가까운 미완료 분량
+      // 초기 day 선택: 쿼리가 없으면 첫 미완료 분량
       let initialDay;
       if (queryDay != null) {
         initialDay = clamp(queryDay, DAY_MIN, days);
@@ -1320,21 +1314,20 @@
         const p2 = loadProgress();
         const cycle = Number(p2.activeCycle || 1);
         ensureCycle(p2, cycle);
-
-        const opt = loadOptions();
-
-        initialDay = opt.autoNextAfterDoneToday
-          ? pickAutoDay(p2, cycle, todayDay, days)
-          : findNextUndoneDay(p2, cycle, 0, days);
+        initialDay = findNextUndoneDay(p2, cycle, 0, days);
       }
 
       const pFinal = loadProgress();
       const state = {
         PLAN,
         days,
-        todayDay: initialDay,
         selectedDay: initialDay,
         cycle: Number(pFinal.activeCycle || 1),
+        getDefaultDay: () => {
+          const progress = loadProgress();
+          ensureCycle(progress, state.cycle);
+          return findNextUndoneDay(progress, state.cycle, 0, state.days);
+        },
         setSelectedDay: (d) => {
           state.selectedDay = clamp(d, DAY_MIN, days);
           setQueryDay(state.selectedDay);

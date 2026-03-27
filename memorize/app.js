@@ -1,12 +1,9 @@
 (() => {
-  const MS_DAY = 1000 * 60 * 60 * 24;
   const WEEK_MIN = 1;
   const OPT_KEY = "memorize:options:v1";
   const TTS_KEY = "memorize:tts:v4";
   const DEFAULT_OPTIONS = {
-    autoNextAfterDoneCurrent: false,
-    startSunday: "",
-    startSundayPromptSeen: false,
+    autoNextAfterDoneSelection: false,
   };
 
   const $q = (sel) => $(sel);
@@ -29,12 +26,17 @@
 
   const normalizeWeeks = (data) =>
     (Array.isArray(data?.weeks) ? data.weeks : []).map((item, index) => {
-      const verses = Array.isArray(item.verses) && item.verses.length
-        ? item.verses
-        : [
-            item.ref1 || item.text1 ? { label: "A", ref: item.ref1 || "", text: item.text1 || "" } : null,
-            item.ref2 || item.text2 ? { label: "B", ref: item.ref2 || "", text: item.text2 || "" } : null,
-          ].filter(Boolean);
+      const verses =
+        Array.isArray(item.verses) && item.verses.length
+          ? item.verses
+          : [
+              item.ref1 || item.text1
+                ? { label: "A", ref: item.ref1 || "", text: item.text1 || "" }
+                : null,
+              item.ref2 || item.text2
+                ? { label: "B", ref: item.ref2 || "", text: item.text2 || "" }
+                : null,
+            ].filter(Boolean);
 
       return {
         week: Number(item.week ?? index + 1),
@@ -45,69 +47,20 @@
       };
     });
 
-  const startOfDay = (value) => {
-    const d = new Date(value);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
-
-  const parseDateInputValue = (value) => {
-    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!match) return null;
-    const [, yyyy, mm, dd] = match;
-    const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-    if (
-      date.getFullYear() !== Number(yyyy) ||
-      date.getMonth() !== Number(mm) - 1 ||
-      date.getDate() !== Number(dd)
-    ) {
-      return null;
-    }
-    return startOfDay(date);
-  };
-
-  const computeFirstSunday = (year) => {
-    const d = new Date(year, 0, 1);
-    const offset = (7 - d.getDay()) % 7;
-    d.setDate(d.getDate() + offset);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
-
-  const isSunday = (date) => date instanceof Date && !Number.isNaN(date.getTime()) && date.getDay() === 0;
-
-  const resolveStartSunday = (year, value) => {
-    const fallback = computeFirstSunday(year);
-    if (!value) return fallback;
-    const parsed = parseDateInputValue(value);
-    if (!parsed) return fallback;
-    if (parsed.getFullYear() !== year) return fallback;
-    if (!isSunday(parsed)) return null;
-    return parsed;
-  };
-
-  const fmtKOR = (d) => {
-    const days = ["일", "월", "화", "수", "목", "금", "토"];
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} (${days[d.getDay()]})`;
-  };
-
-  const weekRange = (startDate, week) => {
-    const s = new Date(startDate.getTime() + (week - 1) * 7 * MS_DAY);
-    const e = new Date(s.getTime() + 6 * MS_DAY);
-    return { s, e };
-  };
-
-  const getWeekIndex = (startDate, totalWeeks) => {
-    const diffDays = Math.floor((new Date() - new Date(startDate)) / MS_DAY);
-    return clamp(Math.floor(diffDays / 7) + 1, WEEK_MIN, totalWeeks);
-  };
-
   const doneKey = (year) => `memorized:${year}`;
   const getDoneMap = (year) => safeJSON.read(doneKey(year), {});
   const setDoneMap = (year, map) => safeJSON.write(doneKey(year), map);
   const countDone = (map) => Object.values(map || {}).filter(Boolean).length;
 
-  const getOptions = () => ({ ...DEFAULT_OPTIONS, ...safeJSON.read(OPT_KEY, DEFAULT_OPTIONS) });
+  const getOptions = () => {
+    const parsed = safeJSON.read(OPT_KEY, {});
+    return {
+      autoNextAfterDoneSelection:
+        parsed.autoNextAfterDoneSelection ?? parsed.autoNextAfterDoneCurrent ?? false,
+      ...parsed,
+    };
+  };
+
   const setOptions = (value) => safeJSON.write(OPT_KEY, { ...DEFAULT_OPTIONS, ...value });
 
   const getTTS = () =>
@@ -141,6 +94,14 @@
       if (!doneMap[String(week)]) return week;
     }
     return startWeek;
+  };
+
+  const findFirstUndoneWeek = (year, totalWeeks) => {
+    const doneMap = getDoneMap(year);
+    for (let week = WEEK_MIN; week <= totalWeeks; week += 1) {
+      if (!doneMap[String(week)]) return week;
+    }
+    return totalWeeks || WEEK_MIN;
   };
 
   const sanitizeForTTS = (text) =>
@@ -239,21 +200,22 @@
       if (!ttsRuntime.playing) return;
       const nextCfg = getTTS();
       clearTTSTimer();
-      ttsRuntime.timer = setTimeout(() => startTTS(state), clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000);
+      ttsRuntime.timer = setTimeout(
+        () => startTTS(state),
+        clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
+      );
     };
     utterance.onerror = () => stopTTS();
   };
 
   const renderHeader = (state) => {
-    const { s, e } = weekRange(state.startDate, state.selectedWeek);
-    const doneMap = getDoneMap(state.activeYear);
-    $q("#week-badge").text(`${state.activeYear}년 · ${state.selectedWeek}주 · ${fmtKOR(s)} ~ ${fmtKOR(e)}`);
-    $q("#progress").text(`진행률: ${countDone(doneMap)}/${state.totalWeeks}`);
+    $q("#week-badge").text(`${state.selectedWeek}주 암송`);
+    $q("#progress").text(`진행률: ${countDone(getDoneMap(state.activeYear))}/${state.totalWeeks}`);
   };
 
-  const renderOptions = (state) => {
+  const renderOptions = () => {
     const opt = getOptions();
-    $q("#auto-next-toggle").prop("checked", !!opt.autoNextAfterDoneCurrent);
+    $q("#auto-next-toggle").prop("checked", !!opt.autoNextAfterDoneSelection);
   };
 
   const renderMainCard = (state) => {
@@ -265,30 +227,37 @@
 
     const doneMap = getDoneMap(state.activeYear);
     const done = !!doneMap[String(state.selectedWeek)];
-    const isCurrent = state.selectedWeek === state.currentWeek;
+    const isDefaultWeek = state.selectedWeek === state.getDefaultWeek();
 
     $q("#main-card").html(`
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 border border-gray-100 dark:border-gray-700">
         <div class="inline-flex items-center gap-2">
           <span class="text-xs px-2 py-1 rounded-full ${
-            isCurrent
+            isDefaultWeek
               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-100"
               : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200"
           }">
-            ${isCurrent ? "이번 주" : "미리보기"}
+            ${isDefaultWeek ? "미완료 기준" : "선택한 주차"}
           </span>
           <span class="text-xs text-gray-500 dark:text-gray-300">${state.selectedWeek}주</span>
         </div>
 
-        ${weekData.category ? `<div class="mt-3 text-xs font-semibold text-blue-700 dark:text-blue-200">${weekData.category}</div>` : ""}
-        ${weekData.title ? `<div class="mt-1 text-lg font-bold text-gray-900 dark:text-gray-100">${weekData.title}</div>` : ""}
+        ${
+          weekData.category
+            ? `<div class="mt-3 text-xs font-semibold text-blue-700 dark:text-blue-200">${weekData.category}</div>`
+            : ""
+        }
+        ${
+          weekData.title
+            ? `<div class="mt-1 text-lg font-bold text-gray-900 dark:text-gray-100">${weekData.title}</div>`
+            : ""
+        }
 
         <div class="mt-4 space-y-3">
           ${weekData.verses
             .map(
               (verse) => `
                 <article class="rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 p-4">
-                  <div class="text-xs font-semibold text-gray-500 dark:text-gray-300">${verse.label || ""}</div>
                   <div class="mt-2 text-sm font-semibold text-blue-700 dark:text-blue-200">${verse.ref || ""}</div>
                   <div class="mt-2 text-[16px] leading-relaxed text-gray-900 dark:text-gray-100">${verse.text || ""}</div>
                 </article>
@@ -298,32 +267,36 @@
         </div>
 
         <button id="done-btn"
-          class="mt-4 w-full py-3 rounded-xl text-white font-semibold shadow-sm active:scale-[0.99] ${done ? "bg-green-600" : "bg-blue-600"}">
+          class="mt-4 w-full py-3 rounded-xl text-white font-semibold shadow-sm active:scale-[0.99] ${
+            done ? "bg-green-600" : "bg-blue-600"
+          }">
           ${done ? "완료됨 ✓ (다시 누르면 해제)" : "암송했어요 :)"}
         </button>
       </div>
     `);
 
-    $q("#done-btn").off("click").on("click", () => {
-      stopTTS();
-      const beforeCount = countDone(doneMap);
-      const nextDone = !done;
-      const nextMap = { ...doneMap, [String(state.selectedWeek)]: nextDone };
-      const afterCount = countDone(nextMap);
-      setDoneMap(state.activeYear, nextMap);
+    $q("#done-btn")
+      .off("click")
+      .on("click", () => {
+        stopTTS();
+        const beforeCount = countDone(doneMap);
+        const nextDone = !done;
+        const nextMap = { ...doneMap, [String(state.selectedWeek)]: nextDone };
+        const afterCount = countDone(nextMap);
+        setDoneMap(state.activeYear, nextMap);
 
-      if (nextDone && afterCount > beforeCount) {
-        if (afterCount >= state.totalWeeks) window.SiteFX?.burstBig?.();
-        else window.SiteFX?.burstSmall?.();
-      }
+        if (nextDone && afterCount > beforeCount) {
+          if (afterCount >= state.totalWeeks) window.SiteFX?.burstBig?.();
+          else window.SiteFX?.burstSmall?.();
+        }
 
-      if (nextDone && getOptions().autoNextAfterDoneCurrent) {
-        state.setSelectedWeek(findNextUndoneWeek(state.activeYear, state.selectedWeek, state.totalWeeks));
-        return;
-      }
+        if (nextDone && getOptions().autoNextAfterDoneSelection) {
+          state.setSelectedWeek(findNextUndoneWeek(state.activeYear, state.selectedWeek, state.totalWeeks));
+          return;
+        }
 
-      renderAll(state);
-    });
+        renderAll(state);
+      });
   };
 
   const renderTTS = (state) => {
@@ -344,7 +317,7 @@
         </button>
 
         <div id="tts-panel" class="${cfg.open ? "" : "hidden"} mt-3">
-          <div class="text-xs text-gray-500 dark:text-gray-300 mb-2">한 주의 2개 구절을 차례대로 읽고, 정한 텀 뒤에 반복합니다.</div>
+          <div class="text-xs text-gray-500 dark:text-gray-300 mb-2">선택한 주차의 구절을 차례대로 읽고, 정한 텀 뒤에 반복합니다.</div>
 
           <div class="flex flex-wrap items-center gap-2">
             <div class="text-xs text-gray-500 dark:text-gray-300 mr-1">텀(초):</div>
@@ -352,7 +325,9 @@
               .map(
                 (gap) => `
                   <label class="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40 text-sm text-gray-800 dark:text-gray-100">
-                    <input type="radio" name="gap-sec" value="${gap}" ${Number(cfg.gapSec) === gap ? "checked" : ""}>
+                    <input type="radio" name="gap-sec" value="${gap}" ${
+                  Number(cfg.gapSec) === gap ? "checked" : ""
+                }>
                     <span>${gap}</span>
                   </label>
                 `
@@ -380,17 +355,26 @@
             </div>
           </div>
 
-          ${voices.length ? `
+          ${
+            voices.length
+              ? `
             <div class="mt-3 hidden">
               <select id="tts-voice"
                 class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
                 <option value="">자동(한국어)</option>
                 ${voices
-                  .map((voice) => `<option value="${voice.voiceURI}" ${cfg.voiceURI === voice.voiceURI ? "selected" : ""}>${voice.name} (${voice.lang})</option>`)
+                  .map(
+                    (voice) =>
+                      `<option value="${voice.voiceURI}" ${
+                        cfg.voiceURI === voice.voiceURI ? "selected" : ""
+                      }>${voice.name} (${voice.lang})</option>`
+                  )
                   .join("")}
               </select>
             </div>
-          ` : ""}
+          `
+              : ""
+          }
 
           <div class="mt-3 grid grid-cols-2 gap-2">
             <button id="tts-play" class="rounded-xl bg-blue-600 text-white py-3 font-semibold shadow-sm active:scale-[0.99]">▶ 시작</button>
@@ -402,31 +386,43 @@
       </div>
     `);
 
-    $q("#tts-toggle").off("click").on("click", () => {
-      setTTS({ ...getTTS(), open: !cfg.open });
-      renderTTS(state);
-    });
+    $q("#tts-toggle")
+      .off("click")
+      .on("click", () => {
+        setTTS({ ...getTTS(), open: !cfg.open });
+        renderTTS(state);
+      });
 
-    $q('input[name="gap-sec"]').off("change").on("change", function () {
-      setTTS({ ...getTTS(), gapSec: clamp(Number(this.value) || 10, 1, 999) });
-      if (ttsRuntime.playing) setTTSStatus(`암송: ${getTTS().gapSec}초 텀`);
-    });
+    $q('input[name="gap-sec"]')
+      .off("change")
+      .on("change", function () {
+        setTTS({ ...getTTS(), gapSec: clamp(Number(this.value) || 10, 1, 999) });
+        if (ttsRuntime.playing) setTTSStatus(`암송: ${getTTS().gapSec}초 텀`);
+      });
 
-    $q(".rate-btn").off("click").on("click", function () {
-      setTTS({ ...getTTS(), ratePreset: $(this).data("rate") });
-      renderTTS(state);
-    });
+    $q(".rate-btn")
+      .off("click")
+      .on("click", function () {
+        setTTS({ ...getTTS(), ratePreset: $(this).data("rate") });
+        renderTTS(state);
+      });
 
-    $q("#tts-voice").off("change").on("change", function () {
-      setTTS({ ...getTTS(), voiceURI: this.value || "" });
-    });
+    $q("#tts-voice")
+      .off("change")
+      .on("change", function () {
+        setTTS({ ...getTTS(), voiceURI: this.value || "" });
+      });
 
-    $q("#tts-play").off("click").on("click", () => {
-      stopTTS();
-      startTTS(state);
-    });
+    $q("#tts-play")
+      .off("click")
+      .on("click", () => {
+        stopTTS();
+        startTTS(state);
+      });
 
-    $q("#tts-stop").off("click").on("click", () => stopTTS());
+    $q("#tts-stop")
+      .off("click")
+      .on("click", () => stopTTS());
 
     setTTSStatus(ttsRuntime.playing ? `암송: ${cfg.gapSec}초 텀` : "");
   };
@@ -438,7 +434,7 @@
 
   const renderAll = (state) => {
     renderHeader(state);
-    renderOptions(state);
+    renderOptions();
     renderMainCard(state);
     renderTTS(state);
     updateNavButtons(state);
@@ -450,7 +446,7 @@
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "제자반 신앙생활 · 32주 암송",
+          title: "제자훈련 신앙생활 · 32주 암송",
           text: `${week}주 암송 말씀을 확인해 보세요.`,
           url: url.toString(),
         });
@@ -462,14 +458,24 @@
   };
 
   const bindStaticEvents = (state) => {
-    $q("#go-home").off("click").on("click", () => {
-      stopTTS();
-      window.location.replace("/");
-    });
-    $q("#prev-btn").off("click").on("click", () => state.setSelectedWeek(state.selectedWeek - 1));
-    $q("#next-btn").off("click").on("click", () => state.setSelectedWeek(state.selectedWeek + 1));
-    $q("#go-current").off("click").on("click", () => state.setSelectedWeek(state.currentWeek));
-    $q("#share-btn").off("click").on("click", () => tryShare(state.selectedWeek));
+    $q("#go-home")
+      .off("click")
+      .on("click", () => {
+        stopTTS();
+        window.location.replace("/");
+      });
+    $q("#prev-btn")
+      .off("click")
+      .on("click", () => state.setSelectedWeek(state.selectedWeek - 1));
+    $q("#next-btn")
+      .off("click")
+      .on("click", () => state.setSelectedWeek(state.selectedWeek + 1));
+    $q("#go-default")
+      .off("click")
+      .on("click", () => state.setSelectedWeek(state.getDefaultWeek()));
+    $q("#share-btn")
+      .off("click")
+      .on("click", () => tryShare(state.selectedWeek));
 
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) stopTTS();
@@ -477,10 +483,12 @@
     window.addEventListener("beforeunload", () => stopTTS());
   };
 
-  const bindOptionEvents = (state) => {
-    $q("#auto-next-toggle").off("change").on("change", function () {
-      setOptions({ ...getOptions(), autoNextAfterDoneCurrent: this.checked });
-    });
+  const bindOptionEvents = () => {
+    $q("#auto-next-toggle")
+      .off("change")
+      .on("change", function () {
+        setOptions({ ...getOptions(), autoNextAfterDoneSelection: this.checked });
+      });
   };
 
   (async function init() {
@@ -489,9 +497,6 @@
     const weeks = normalizeWeeks(raw);
     const totalWeeks = weeks.length || 32;
     const activeYear = new Date().getFullYear();
-    const opt = getOptions();
-    const startDate = resolveStartSunday(activeYear, opt.startSunday) || computeFirstSunday(activeYear);
-    const currentWeek = getWeekIndex(startDate, totalWeeks);
     const queryWeek = getQueryWeek(totalWeeks);
 
     if ("speechSynthesis" in window) {
@@ -503,18 +508,12 @@
       } catch (_) {}
     }
 
-    let initialWeek = queryWeek ?? currentWeek;
-    if (queryWeek == null && opt.autoNextAfterDoneCurrent && getDoneMap(activeYear)[String(currentWeek)]) {
-      initialWeek = findNextUndoneWeek(activeYear, currentWeek, totalWeeks);
-    }
-
     const state = {
       weeks,
       totalWeeks,
       activeYear,
-      startDate,
-      currentWeek,
-      selectedWeek: clamp(initialWeek, WEEK_MIN, totalWeeks),
+      selectedWeek: WEEK_MIN,
+      getDefaultWeek: () => findFirstUndoneWeek(activeYear, totalWeeks),
       setSelectedWeek: (week) => {
         stopTTS();
         state.selectedWeek = clamp(week, WEEK_MIN, totalWeeks);
@@ -523,11 +522,12 @@
       },
     };
 
+    state.selectedWeek = queryWeek ?? state.getDefaultWeek();
     window.__memorize_state__ = state;
     if (queryWeek == null) setQueryWeek(state.selectedWeek);
 
     bindStaticEvents(state);
-    bindOptionEvents(state);
+    bindOptionEvents();
     renderAll(state);
     setTimeout(() => renderTTS(state), 300);
   })();
