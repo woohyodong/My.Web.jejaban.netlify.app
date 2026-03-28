@@ -52,10 +52,8 @@
       <div class="w-10"></div>
 
       <div class="text-center">
-        <h1 class="text-xl font-extrabold text-center flex-1">
-          <strong id="year">2026</strong>년 제자훈련 신앙생활
-        </h1>
-        <small class="">ACTS 2026! 다시 복음으로!</small>
+        <h1 class="text-xl font-extrabold text-center flex-1">제자훈련 신앙생활</h1>
+        <small>ACTS 2026! 다시 복음으로!</small>
       </div>
       <button id="open-settings"
         class="w-10 h-10 grid place-items-center rounded-xl bg-white dark:bg-gray-800 shadow
@@ -287,10 +285,6 @@
         barEl.classList.add("bg-emerald-600");
       }
     }
-
-    // ---------- Year ----------
-    const activeYear = new Date().getFullYear();
-    qs("year").textContent = activeYear;
 
     // ---------- Prayer Count ----------
     const updatePrayerCard = () => {

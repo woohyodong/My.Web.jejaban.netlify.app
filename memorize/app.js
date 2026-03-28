@@ -246,6 +246,7 @@
   };
 
   const CARD_TTS_GAP_MS = 2000;
+  const VERSE_REF_TTS_DELAY_MS = 1000;
   const ttsRuntime = { playing: false, timer: null };
 
   const setTTSStatus = (message) => {
@@ -288,9 +289,12 @@
     if (!weekData) return;
 
     const cfg = getTTS();
-    const segments = weekData.verses.map((verse) =>
-      sanitizeForTTS(`${verse.text} ${formatVerseRefForTTS(verse.ref)}`.trim())
-    );
+    const segments = weekData.verses
+      .map((verse) => ({
+        text: sanitizeForTTS(verse.text),
+        ref: sanitizeForTTS(formatVerseRefForTTS(verse.ref)),
+      }))
+      .filter((segment) => segment.text || segment.ref);
     if (!segments.length) {
       stopTTS();
       return;
@@ -302,7 +306,9 @@
     const speakSegment = (index) => {
       if (!ttsRuntime.playing || index >= segments.length) return;
 
-      const utterance = speakOnce(segments[index], cfg);
+      const current = segments[index];
+      const textToSpeak = current.text || current.ref;
+      const utterance = speakOnce(textToSpeak, cfg);
       if (!utterance) {
         stopTTS();
         return;
@@ -311,6 +317,36 @@
       utterance.onend = () => {
         if (!ttsRuntime.playing) return;
         clearTTSTimer();
+
+        if (current.text && current.ref) {
+          ttsRuntime.timer = setTimeout(() => {
+            if (!ttsRuntime.playing) return;
+
+            const refUtterance = speakOnce(current.ref, cfg);
+            if (!refUtterance) {
+              stopTTS();
+              return;
+            }
+
+            refUtterance.onend = () => {
+              if (!ttsRuntime.playing) return;
+              clearTTSTimer();
+
+              if (index < segments.length - 1) {
+                ttsRuntime.timer = setTimeout(() => speakSegment(index + 1), CARD_TTS_GAP_MS);
+                return;
+              }
+
+              const nextCfg = getTTS();
+              ttsRuntime.timer = setTimeout(
+                () => startTTS(state),
+                clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
+              );
+            };
+            refUtterance.onerror = () => stopTTS();
+          }, VERSE_REF_TTS_DELAY_MS);
+          return;
+        }
 
         if (index < segments.length - 1) {
           ttsRuntime.timer = setTimeout(() => speakSegment(index + 1), CARD_TTS_GAP_MS);
