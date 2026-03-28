@@ -112,6 +112,110 @@
       .replace(/\s{2,}/g, " ")
       .trim();
 
+  const BIBLE_BOOK_NAMES = {
+    창: "창세기",
+    출: "출애굽기",
+    레: "레위기",
+    민: "민수기",
+    신: "신명기",
+    수: "여호수아",
+    삿: "사사기",
+    룻: "룻기",
+    삼상: "사무엘상",
+    삼하: "사무엘하",
+    왕상: "열왕기상",
+    왕하: "열왕기하",
+    대상: "역대상",
+    대하: "역대하",
+    스: "에스라",
+    느: "느헤미야",
+    에: "에스더",
+    욥: "욥기",
+    시: "시편",
+    잠: "잠언",
+    전: "전도서",
+    아: "아가",
+    사: "이사야",
+    렘: "예레미야",
+    애: "예레미야애가",
+    겔: "에스겔",
+    단: "다니엘",
+    호: "호세아",
+    욜: "요엘",
+    암: "아모스",
+    옵: "오바댜",
+    욘: "요나",
+    미: "미가",
+    나: "나훔",
+    합: "하박국",
+    습: "스바냐",
+    학: "학개",
+    슥: "스가랴",
+    말: "말라기",
+    마: "마태복음",
+    막: "마가복음",
+    눅: "누가복음",
+    요: "요한복음",
+    행: "사도행전",
+    롬: "로마서",
+    고전: "고린도전서",
+    고후: "고린도후서",
+    갈: "갈라디아서",
+    엡: "에베소서",
+    빌: "빌립보서",
+    골: "골로새서",
+    살전: "데살로니가전서",
+    살후: "데살로니가후서",
+    딤전: "디모데전서",
+    딤후: "디모데후서",
+    딛: "디도서",
+    몬: "빌레몬서",
+    히: "히브리서",
+    약: "야고보서",
+    벧전: "베드로전서",
+    벧후: "베드로후서",
+    요일: "요한일서",
+    요이: "요한이서",
+    요삼: "요한삼서",
+    유: "유다서",
+    계: "요한계시록"
+  };
+
+  const formatVerseRef = (ref) => {
+    const value = String(ref || "").trim();
+    if (!value) return "";
+    const match = value.match(/^([^\d\s]+)\s*(.+)$/);
+    if (!match) return value;
+    const [, shortName, rest] = match;
+    return `${BIBLE_BOOK_NAMES[shortName] || shortName} ${rest}`.trim();
+  };
+
+  const formatVerseRefForTTS = (ref) => {
+    const value = String(ref || "").trim();
+    if (!value) return "";
+
+    const match = value.match(/^([^\d\s]+)\s*(.+)$/);
+    if (!match) return value;
+
+    const [, shortName, rest] = match;
+    const bookName = BIBLE_BOOK_NAMES[shortName] || shortName;
+    const rangeMatch = rest.match(/^(\d+):(\d+)(?:-(\d+))?([상하]?)$/);
+
+    if (!rangeMatch) return `${bookName} ${rest} 말씀. 아멘!`;
+
+    const [, chapter, verseStart, verseEnd, suffix] = rangeMatch;
+    let verseText = `${chapter}장 ${verseStart}절`;
+
+    if (verseEnd) {
+      verseText += `에서 ${verseEnd}절`;
+    }
+
+    if (suffix === "상") verseText += " 상반절";
+    if (suffix === "하") verseText += " 하반절";
+
+    return `${bookName} ${verseText} 말씀. 아멘!`;
+  };
+
   const getRateByPreset = (preset) => {
     if (preset === "slow") return 0.95;
     if (preset === "fast") return 1.05;
@@ -141,6 +245,7 @@
     );
   };
 
+  const CARD_TTS_GAP_MS = 2000;
   const ttsRuntime = { playing: false, timer: null };
 
   const setTTSStatus = (message) => {
@@ -183,29 +288,45 @@
     if (!weekData) return;
 
     const cfg = getTTS();
-    const text = sanitizeForTTS(
-      weekData.verses.map((verse) => `${verse.ref} ${verse.text}`.trim()).join(" ")
+    const segments = weekData.verses.map((verse) =>
+      sanitizeForTTS(`${verse.text} ${formatVerseRefForTTS(verse.ref)}`.trim())
     );
-
-    ttsRuntime.playing = true;
-    setTTSStatus(`암송: ${cfg.gapSec}초 텀`);
-
-    const utterance = speakOnce(text, cfg);
-    if (!utterance) {
+    if (!segments.length) {
       stopTTS();
       return;
     }
 
-    utterance.onend = () => {
-      if (!ttsRuntime.playing) return;
-      const nextCfg = getTTS();
-      clearTTSTimer();
-      ttsRuntime.timer = setTimeout(
-        () => startTTS(state),
-        clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
-      );
+    ttsRuntime.playing = true;
+    setTTSStatus(`암송: ${cfg.gapSec}초 텀`);
+
+    const speakSegment = (index) => {
+      if (!ttsRuntime.playing || index >= segments.length) return;
+
+      const utterance = speakOnce(segments[index], cfg);
+      if (!utterance) {
+        stopTTS();
+        return;
+      }
+
+      utterance.onend = () => {
+        if (!ttsRuntime.playing) return;
+        clearTTSTimer();
+
+        if (index < segments.length - 1) {
+          ttsRuntime.timer = setTimeout(() => speakSegment(index + 1), CARD_TTS_GAP_MS);
+          return;
+        }
+
+        const nextCfg = getTTS();
+        ttsRuntime.timer = setTimeout(
+          () => startTTS(state),
+          clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
+        );
+      };
+      utterance.onerror = () => stopTTS();
     };
-    utterance.onerror = () => stopTTS();
+
+    speakSegment(0);
   };
 
   const renderHeader = (state) => {
@@ -231,17 +352,6 @@
 
     $q("#main-card").html(`
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 border border-gray-100 dark:border-gray-700">
-        <div class="inline-flex items-center gap-2">
-          <span class="text-xs px-2 py-1 rounded-full ${
-            isDefaultWeek
-              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-100"
-              : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200"
-          }">
-            ${isDefaultWeek ? "미완료 기준" : "선택한 주차"}
-          </span>
-          <span class="text-xs text-gray-500 dark:text-gray-300">${state.selectedWeek}주</span>
-        </div>
-
         ${
           weekData.category
             ? `<div class="mt-3 text-xs font-semibold text-blue-700 dark:text-blue-200">${weekData.category}</div>`
@@ -258,8 +368,8 @@
             .map(
               (verse) => `
                 <article class="rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 p-4">
-                  <div class="mt-2 text-sm font-semibold text-blue-700 dark:text-blue-200">${verse.ref || ""}</div>
-                  <div class="mt-2 text-[16px] leading-relaxed text-gray-900 dark:text-gray-100">${verse.text || ""}</div>
+                  <div class="text-[16px] leading-relaxed text-gray-900 dark:text-gray-100">${verse.text || ""}</div>
+                  <div class="mt-2 text-sm font-semibold text-blue-700 dark:text-blue-200">${formatVerseRef(verse.ref)}</div>
                 </article>
               `
             )
