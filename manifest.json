@@ -1,0 +1,27 @@
+{
+  "name": "제자훈련 신앙생활",
+  "short_name": "제자훈련",
+  "start_url": "/",
+  "scope": "/",
+  "orientation": "portrait",
+  "display": "standalone",
+  "background_color": "#fff",
+  "theme_color": "#2563EB",
+  "icons": [
+    {
+      "src": "/icons/favicon.ico",
+      "type": "image/x-icon",
+      "sizes": "16x16 32x32 48x48"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
