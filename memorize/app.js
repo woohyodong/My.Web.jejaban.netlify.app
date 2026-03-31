@@ -245,8 +245,9 @@
     );
   };
 
-  const CARD_TTS_GAP_MS = 2000;
-  const VERSE_REF_TTS_DELAY_MS = 1000;
+  const CARD_TTS_GAP_MS = 1500;
+  const VERSE_REF_TTS_DELAY_MS = 500;
+  const TITLE_TTS_DELAY_MS = 500;
   const ttsRuntime = { playing: false, timer: null };
 
   const setTTSStatus = (message) => {
@@ -284,7 +285,7 @@
     return utterance;
   };
 
-  const startTTS = (state) => {
+  const startTTS = (state, { announceTitle = false } = {}) => {
     const weekData = state.weeks.find((item) => item.week === state.selectedWeek);
     if (!weekData) return;
 
@@ -339,7 +340,7 @@
 
               const nextCfg = getTTS();
               ttsRuntime.timer = setTimeout(
-                () => startTTS(state),
+                () => startTTS(state, { announceTitle: true }),
                 clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
               );
             };
@@ -355,12 +356,32 @@
 
         const nextCfg = getTTS();
         ttsRuntime.timer = setTimeout(
-          () => startTTS(state),
+          () => startTTS(state, { announceTitle: true }),
           clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
         );
       };
       utterance.onerror = () => stopTTS();
     };
+
+    const titleToSpeak = String(weekData.title || "").trim();
+    if (announceTitle && titleToSpeak) {
+      const titleUtterance = speakOnce(titleToSpeak, cfg);
+      if (!titleUtterance) {
+        stopTTS();
+        return;
+      }
+
+      titleUtterance.onend = () => {
+        if (!ttsRuntime.playing) return;
+        clearTTSTimer();
+        ttsRuntime.timer = setTimeout(() => {
+          if (!ttsRuntime.playing) return;
+          speakSegment(0);
+        }, TITLE_TTS_DELAY_MS);
+      };
+      titleUtterance.onerror = () => stopTTS();
+      return;
+    }
 
     speakSegment(0);
   };
@@ -563,7 +584,7 @@
       .off("click")
       .on("click", () => {
         stopTTS();
-        startTTS(state);
+        startTTS(state, { announceTitle: true });
       });
 
     $q("#tts-stop")
