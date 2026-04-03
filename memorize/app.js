@@ -224,6 +224,32 @@
     return `${bookName} ${verseText} 말씀. 아멘!`;
   };
 
+  const formatVerseRefForTTSNoAmen = (ref) => {
+    const value = String(ref || "").trim();
+    if (!value) return "";
+
+    const match = value.match(/^([^\d\s]+)\s*(.+)$/);
+    if (!match) return value;
+
+    const [, shortName, rest] = match;
+    const bookName = BIBLE_BOOK_NAMES[shortName] || shortName;
+    const rangeMatch = rest.match(/^(\d+):(\d+)(?:-(\d+))?([상하]?)$/);
+
+    if (!rangeMatch) return `${bookName} ${rest} 말씀.`;
+
+    const [, chapter, verseStart, verseEnd, suffix] = rangeMatch;
+    let verseText = `${chapter}장 ${verseStart}절`;
+
+    if (verseEnd) {
+      verseText += `에서 ${verseEnd}절`;
+    }
+
+    if (suffix === "상") verseText += " 상반절";
+    if (suffix === "하") verseText += " 하반절";
+
+    return `${bookName} ${verseText} 말씀.`;
+  };
+
   const getRateByPreset = (preset) => {
     if (preset === "slow") return 0.95;
     if (preset === "fast") return 1.05;
@@ -301,9 +327,10 @@
     const segments = weekData.verses
       .map((verse) => ({
         text: sanitizeForTTS(verse.text),
+        refPlain: sanitizeForTTS(formatVerseRefForTTSNoAmen(verse.ref)),
         ref: sanitizeForTTS(formatVerseRefForTTS(verse.ref)),
       }))
-      .filter((segment) => segment.text || segment.ref);
+      .filter((segment) => segment.text || segment.refPlain || segment.ref);
     if (!segments.length) {
       stopTTS();
       return;
@@ -316,59 +343,53 @@
       if (!ttsRuntime.playing || index >= segments.length) return;
 
       const current = segments[index];
-      const textToSpeak = current.text || current.ref;
-      const utterance = speakOnce(textToSpeak, cfg);
-      if (!utterance) {
-        stopTTS();
-        return;
-      }
+      const steps = [
+        current.refPlain || "",
+        current.text || "",
+        current.ref || "",
+      ].filter(Boolean);
 
-      utterance.onend = () => {
+      const speakStep = (stepIndex) => {
         if (!ttsRuntime.playing) return;
-        clearTTSTimer();
-
-        if (current.text && current.ref) {
-          ttsRuntime.timer = setTimeout(() => {
-            if (!ttsRuntime.playing) return;
-
-            const refUtterance = speakOnce(current.ref, cfg);
-            if (!refUtterance) {
-              stopTTS();
-              return;
-            }
-
-            refUtterance.onend = () => {
-              if (!ttsRuntime.playing) return;
-              clearTTSTimer();
-
-              if (index < segments.length - 1) {
-                ttsRuntime.timer = setTimeout(() => speakSegment(index + 1), CARD_TTS_GAP_MS);
-                return;
-              }
-
-              const nextCfg = getTTS();
-              ttsRuntime.timer = setTimeout(
-                () => startTTS(state, { announceTitle: true }),
-                clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
-              );
-            };
-            refUtterance.onerror = () => stopTTS();
-          }, VERSE_REF_TTS_DELAY_MS);
+        const phrase = steps[stepIndex];
+        if (!phrase) {
+          stopTTS();
           return;
         }
 
-        if (index < segments.length - 1) {
-          ttsRuntime.timer = setTimeout(() => speakSegment(index + 1), CARD_TTS_GAP_MS);
+        const utterance = speakOnce(phrase, cfg);
+        if (!utterance) {
+          stopTTS();
           return;
         }
 
-        const nextCfg = getTTS();
-        ttsRuntime.timer = setTimeout(
-          () => startTTS(state, { announceTitle: true }),
-          clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
-        );
+        utterance.onend = () => {
+          if (!ttsRuntime.playing) return;
+          clearTTSTimer();
+
+          if (stepIndex < steps.length - 1) {
+            ttsRuntime.timer = setTimeout(
+              () => speakStep(stepIndex + 1),
+              VERSE_REF_TTS_DELAY_MS
+            );
+            return;
+          }
+
+          if (index < segments.length - 1) {
+            ttsRuntime.timer = setTimeout(() => speakSegment(index + 1), CARD_TTS_GAP_MS);
+            return;
+          }
+
+          const nextCfg = getTTS();
+          ttsRuntime.timer = setTimeout(
+            () => startTTS(state, { announceTitle: true }),
+            clamp(Number(nextCfg.gapSec) || 10, 1, 999) * 1000
+          );
+        };
+        utterance.onerror = () => stopTTS();
       };
-      utterance.onerror = () => stopTTS();
+
+      speakStep(0);
     };
 
     const titleToSpeak = String(weekData.title || "").trim();
