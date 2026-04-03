@@ -104,6 +104,17 @@
     return totalWeeks || WEEK_MIN;
   };
 
+  const resolveInitialWeek = ({ year, totalWeeks, queryWeek }) => {
+    const defaultWeek = findFirstUndoneWeek(year, totalWeeks);
+    if (queryWeek == null) return defaultWeek;
+
+    const options = getOptions();
+    if (!options.autoNextAfterDoneSelection) return queryWeek;
+
+    const doneMap = getDoneMap(year);
+    return doneMap[String(queryWeek)] ? defaultWeek : queryWeek;
+  };
+
   const sanitizeForTTS = (text) =>
     String(text || "")
       .replace(/[\r\n]+/g, " ")
@@ -689,9 +700,9 @@
       },
     };
 
-    state.selectedWeek = queryWeek ?? state.getDefaultWeek();
+    state.selectedWeek = resolveInitialWeek({ year: activeYear, totalWeeks, queryWeek });
     window.__memorize_state__ = state;
-    if (queryWeek == null) setQueryWeek(state.selectedWeek);
+    setQueryWeek(state.selectedWeek);
 
     bindStaticEvents(state);
     bindOptionEvents();
