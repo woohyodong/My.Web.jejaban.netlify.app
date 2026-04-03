@@ -3,7 +3,7 @@
   const OPT_KEY = "memorize:options:v1";
   const TTS_KEY = "memorize:tts:v4";
   const DEFAULT_OPTIONS = {
-    autoNextAfterDoneSelection: false,
+    autoNextAfterDoneSelection: true,
   };
 
   const $q = (sel) => $(sel);
@@ -55,9 +55,9 @@
   const getOptions = () => {
     const parsed = safeJSON.read(OPT_KEY, {});
     return {
-      autoNextAfterDoneSelection:
-        parsed.autoNextAfterDoneSelection ?? parsed.autoNextAfterDoneCurrent ?? false,
+      autoNextAfterDoneSelection: true,
       ...parsed,
+      autoNextAfterDoneSelection: true,
     };
   };
 
@@ -107,9 +107,6 @@
   const resolveInitialWeek = ({ year, totalWeeks, queryWeek }) => {
     const defaultWeek = findFirstUndoneWeek(year, totalWeeks);
     if (queryWeek == null) return defaultWeek;
-
-    const options = getOptions();
-    if (!options.autoNextAfterDoneSelection) return queryWeek;
 
     const doneMap = getDoneMap(year);
     return doneMap[String(queryWeek)] ? defaultWeek : queryWeek;
@@ -403,8 +400,7 @@
   };
 
   const renderOptions = () => {
-    const opt = getOptions();
-    $q("#auto-next-toggle").prop("checked", !!opt.autoNextAfterDoneSelection);
+    return;
   };
 
   const renderMainCard = (state) => {
@@ -468,7 +464,7 @@
           else window.SiteFX?.burstSmall?.();
         }
 
-        if (nextDone && getOptions().autoNextAfterDoneSelection) {
+        if (nextDone) {
           state.setSelectedWeek(findNextUndoneWeek(state.activeYear, state.selectedWeek, state.totalWeeks));
           return;
         }
@@ -662,11 +658,7 @@
   };
 
   const bindOptionEvents = () => {
-    $q("#auto-next-toggle")
-      .off("change")
-      .on("change", function () {
-        setOptions({ ...getOptions(), autoNextAfterDoneSelection: this.checked });
-      });
+    return;
   };
 
   (async function init() {

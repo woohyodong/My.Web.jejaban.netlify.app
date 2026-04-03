@@ -114,21 +114,6 @@
           <section class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
             <div class="flex items-center justify-between gap-3">
               <div>
-                <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">다음 자동 진행</div>
-                <div class="text-xs text-gray-500 dark:text-gray-300 mt-1">현재 분량 완료 후 자동으로 다음 분량 선택</div>
-              </div>
-
-              <label class="relative inline-flex items-center cursor-pointer select-none">
-                <input id="opt-auto-next" type="checkbox" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 rounded-full peer peer-checked:bg-blue-600 transition"></div>
-                <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
-              </label>
-            </div>
-          </section>
-
-          <section class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-            <div class="flex items-center justify-between gap-3">
-              <div>
                 <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">화면 꺼짐 방지</div>
                 <div class="text-xs text-gray-500 dark:text-gray-300 mt-1">기본은 켜짐이고, 끄면 기기의 자동 화면 꺼짐을 허용합니다</div>
               </div>
@@ -256,6 +241,10 @@
               </div>
 
               <div class="shrink-0 flex items-center gap-2">
+                <button id="goodtv-play-day"
+                  class="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 font-semibold active:scale-[0.99]">
+                  ▶ 전체
+                </button>
                 <button id="goodtv-play"
                   class="px-6 py-2 rounded-xl bg-blue-600 text-white font-semibold active:scale-[0.99]">
                   ▶
