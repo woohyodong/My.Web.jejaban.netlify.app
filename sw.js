@@ -1,4 +1,4 @@
-const CACHE_NAME = "jejaban-app-v1";
+const CACHE_NAME = "jejaban-app-v2";
 const CORE = [
   "/",
   "/index.html",
