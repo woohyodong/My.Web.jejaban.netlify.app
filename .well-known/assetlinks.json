@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.netlify.nalmada.twa",
+      "sha256_cert_fingerprints": [
+        "8A:9C:BB:DA:75:C8:B0:BD:F6:0A:1E:05:14:78:A0:79:18:97:7E:B3:37:EF:8E:09:A1:BD:B6:DA:F5:43:31:89",
+        "E7:3D:B3:59:84:A7:FE:B2:02:D3:71:8B:13:B3:24:75:52:90:31:46:63:44:48:4C:C7:9D:08:10:69:92:55:0A"
+      ]
+    }
+  }
+]
