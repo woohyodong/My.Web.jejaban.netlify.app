@@ -1,14 +1,11 @@
 [
   {
-    "relation": [
-      "delegate_permission/common.handle_all_urls"
-    ],
+    "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
       "package_name": "app.netlify.jejaban.twa",
-      "sha256_cert_fingerprints": [
-        "8A:9C:BB:DA:75:C8:B0:BD:F6:0A:1E:05:14:78:A0:79:18:97:7E:B3:37:EF:8E:09:A1:BD:B6:DA:F5:43:31:89"
-      ]
+      "sha256_cert_fingerprints":
+        ["4A:6F:F4:91:0D:CD:AE:F0:56:54:BD:4C:AE:A9:7D:0C:C8:36:9C:8D:8C:66:28:B9:29:DA:AF:31:AD:99:5C:29"]
     }
   }
 ]
