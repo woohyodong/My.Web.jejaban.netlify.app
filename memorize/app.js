@@ -198,6 +198,57 @@
     return `${BIBLE_BOOK_NAMES[shortName] || shortName} ${rest}`.trim();
   };
 
+  const readNumberForTTS = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num < 0) return String(value || "");
+    if (num === 0) return "영";
+
+    const digits = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+    const units = ["", "십", "백", "천"];
+    let result = "";
+    let rest = Math.trunc(num);
+    let unitIndex = 0;
+
+    while (rest > 0) {
+      const digit = rest % 10;
+      if (digit) {
+        const digitText = digit === 1 && unitIndex > 0 ? "" : digits[digit];
+        result = `${digitText}${units[unitIndex]}${result}`;
+      }
+      rest = Math.floor(rest / 10);
+      unitIndex += 1;
+    }
+
+    return result;
+  };
+
+  const formatVerseNumbersForTTS = (rest, unitLabel) => {
+    const multiVerseMatch = rest.match(/^(\d+):(\d+(?:,\d+)+)$/);
+    if (multiVerseMatch) {
+      const [, chapter, verses] = multiVerseMatch;
+      const verseText = verses
+        .split(",")
+        .map((verse) => `${readNumberForTTS(verse)}절`)
+        .join(", ");
+      return `${readNumberForTTS(chapter)}${unitLabel} ${verseText}`;
+    }
+
+    const rangeMatch = rest.match(/^(\d+):(\d+)(?:-(\d+))?([상하]?)$/);
+    if (!rangeMatch) return "";
+
+    const [, chapter, verseStart, verseEnd, suffix] = rangeMatch;
+    let verseText = `${readNumberForTTS(chapter)}${unitLabel} ${readNumberForTTS(verseStart)}절`;
+
+    if (verseEnd) {
+      verseText += `에서 ${readNumberForTTS(verseEnd)}절`;
+    }
+
+    if (suffix === "상") verseText += " 상반절";
+    if (suffix === "하") verseText += " 하반절";
+
+    return verseText;
+  };
+
   const formatVerseRefForTTS = (ref) => {
     const value = String(ref || "").trim();
     if (!value) return "";
@@ -207,20 +258,10 @@
 
     const [, shortName, rest] = match;
     const bookName = BIBLE_BOOK_NAMES[shortName] || shortName;
-    const rangeMatch = rest.match(/^(\d+):(\d+)(?:-(\d+))?([상하]?)$/);
+    const unitLabel = bookName === "시편" ? "편" : "장";
+    const verseText = formatVerseNumbersForTTS(rest, unitLabel);
 
-    if (!rangeMatch) return `${bookName} ${rest} 말씀. 아멘!`;
-
-    const [, chapter, verseStart, verseEnd, suffix] = rangeMatch;
-    let verseText = `${chapter}장 ${verseStart}절`;
-
-    if (verseEnd) {
-      verseText += `에서 ${verseEnd}절`;
-    }
-
-    if (suffix === "상") verseText += " 상반절";
-    if (suffix === "하") verseText += " 하반절";
-
+    if (!verseText) return `${bookName} ${rest} 말씀. 아멘!`;
     return `${bookName} ${verseText} 말씀. 아멘!`;
   };
 
@@ -233,20 +274,10 @@
 
     const [, shortName, rest] = match;
     const bookName = BIBLE_BOOK_NAMES[shortName] || shortName;
-    const rangeMatch = rest.match(/^(\d+):(\d+)(?:-(\d+))?([상하]?)$/);
+    const unitLabel = bookName === "시편" ? "편" : "장";
+    const verseText = formatVerseNumbersForTTS(rest, unitLabel);
 
-    if (!rangeMatch) return `${bookName} ${rest} 말씀.`;
-
-    const [, chapter, verseStart, verseEnd, suffix] = rangeMatch;
-    let verseText = `${chapter}장 ${verseStart}절`;
-
-    if (verseEnd) {
-      verseText += `에서 ${verseEnd}절`;
-    }
-
-    if (suffix === "상") verseText += " 상반절";
-    if (suffix === "하") verseText += " 하반절";
-
+    if (!verseText) return `${bookName} ${rest} 말씀.`;
     return `${bookName} ${verseText} 말씀.`;
   };
 
