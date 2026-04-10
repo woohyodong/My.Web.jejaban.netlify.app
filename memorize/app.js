@@ -282,8 +282,14 @@
   };
 
   const getRateByPreset = (preset) => {
-    if (preset === "slow") return 0.95;
-    if (preset === "fast") return 1.05;
+    if (preset === "slow") return 0.8;
+    if (preset === "fast") return 1.3;
+    return 1.0;
+  };
+
+  const getDelayScaleByPreset = (preset) => {
+    if (preset === "slow") return 1.2;
+    if (preset === "fast") return 0.8;
     return 1.0;
   };
 
@@ -355,6 +361,7 @@
     if (!weekData) return;
 
     const cfg = getTTS();
+    const delayScale = getDelayScaleByPreset(cfg.ratePreset);
     const segments = weekData.verses
       .map((verse) => ({
         text: sanitizeForTTS(verse.text),
@@ -401,13 +408,16 @@
           if (stepIndex < steps.length - 1) {
             ttsRuntime.timer = setTimeout(
               () => speakStep(stepIndex + 1),
-              VERSE_REF_TTS_DELAY_MS
+              Math.round(VERSE_REF_TTS_DELAY_MS * delayScale)
             );
             return;
           }
 
           if (index < segments.length - 1) {
-            ttsRuntime.timer = setTimeout(() => speakSegment(index + 1), CARD_TTS_GAP_MS);
+            ttsRuntime.timer = setTimeout(
+              () => speakSegment(index + 1),
+              Math.round(CARD_TTS_GAP_MS * delayScale)
+            );
             return;
           }
 
@@ -437,7 +447,7 @@
         ttsRuntime.timer = setTimeout(() => {
           if (!ttsRuntime.playing) return;
           speakSegment(0);
-        }, TITLE_TTS_DELAY_MS);
+        }, Math.round(TITLE_TTS_DELAY_MS * delayScale));
       };
       titleUtterance.onerror = () => stopTTS();
       return;
