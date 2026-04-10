@@ -304,6 +304,33 @@
     }
 
   // ---------- Share (FIX: TWA share 목적) ----------
+  const APP_PACKAGE = "app.netlify.jejaban.twa";
+  const PLAY_URL = `https://play.google.com/store/apps/details?id=${encodeURIComponent(APP_PACKAGE)}`;
+  const TWA_SESSION_KEY = "jejaban:twa-session:v1";
+
+  const detectTwaSession = () => {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const ref = String(document.referrer || "");
+    const referrerMatch = ref.startsWith(`android-app://${APP_PACKAGE}`);
+    const isStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches ?? false;
+    const looksWebView = /\bwv\b/i.test(navigator.userAgent) || /Version\/\d+/i.test(navigator.userAgent);
+
+    let storedTwa = false;
+    try {
+      storedTwa = sessionStorage.getItem(TWA_SESSION_KEY) === "1";
+    } catch (_) {}
+
+    const isTwa = Boolean(storedTwa || referrerMatch || (isAndroid && isStandalone && looksWebView));
+
+    try {
+      if (isTwa) sessionStorage.setItem(TWA_SESSION_KEY, "1");
+    } catch (_) {}
+
+    return { isAndroid, isTwa };
+  };
+
+  detectTwaSession();
+
   qs("share-btn")?.addEventListener("click", async () => {
     const APP_PACKAGE = "app.netlify.jejaban.twa";
     const PLAY_URL = `https://play.google.com/store/apps/details?id=${encodeURIComponent(APP_PACKAGE)}`;
@@ -329,7 +356,10 @@
     // ✅ 공유는 "실행"이 아니라 "전달"이 목적이므로:
     // TWA(앱)에서는 Play 링크 공유(가장 기대 동작이 명확)
     // 웹에서는 사이트 링크 공유
-    const shareUrl = (isTwa && isAndroid) ? PLAY_URL : siteUrl;
+    const shareUrl = (() => {
+      const shareTarget = detectTwaSession();
+      return (shareTarget.isTwa && shareTarget.isAndroid) ? PLAY_URL : siteUrl;
+    })();
 
     const copyToClipboard = async (value) => {
       const v = String(value ?? "");
