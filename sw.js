@@ -1,4 +1,4 @@
-const CACHE_NAME = "jejaban-app-v2";
+const CACHE_NAME = "jejaban-app-v3";
 const CORE = [
   "/",
   "/index.html",
@@ -52,6 +52,18 @@ self.addEventListener("fetch", (e) => {
   if (IS_LOCAL) return; // 🔑 localhost는 완전 패스
 
   const req = e.request;
+  const url = new URL(req.url);
+
+  // Do not cache streamed media. Failed/partial audio responses can otherwise
+  // be replayed from Cache Storage and keep the player in a broken state.
+  if (
+    req.destination === "audio" ||
+    url.pathname.toLowerCase().endsWith(".mp3") ||
+    req.headers.has("range")
+  ) {
+    e.respondWith(fetch(req));
+    return;
+  }
 
   // HTML / JS / JSON → network-first
   if (

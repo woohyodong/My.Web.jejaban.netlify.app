@@ -146,9 +146,7 @@
         return { ok: true, attempt };
       } catch (err) {
         lastError = err;
-        try {
-          audio.pause();
-        } catch (_) {}
+        resetGoodtvAudioMedia();
 
         if (attempt < attempts) await sleep(500 * attempt);
       }
@@ -182,6 +180,18 @@
 
   const setGoodtvPlayBtn = (playing) => {
     qs("#goodtv-play").text(playing ? "❚❚" : "▶");
+  };
+
+  const resetGoodtvAudioMedia = ({ clearLastUrl = false } = {}) => {
+    const a = ensureGoodtvAudio();
+    try {
+      a.pause();
+      a.removeAttribute("src");
+      a.load();
+    } catch (_) {}
+    goodtvAudio.playing = false;
+    if (clearLastUrl) goodtvAudio.lastUrl = null;
+    setGoodtvPlayBtn(false);
   };
 
   const stopGoodtvAudio = () => {
@@ -378,8 +388,65 @@
         const cur = getAUDIO();
         setAUDIO({ ...cur, open: true });
 
-        if (goodtvDayRuntime.playing || goodtvDayRuntime.paused) {
-          stopGoodtvDayQueue();
+        if (goodtvDayRuntime.playing) {
+          try {
+            a.pause();
+          } catch (_) {}
+          goodtvDayRuntime.playing = false;
+          goodtvDayRuntime.paused = true;
+          goodtvAudio.playing = false;
+          setGoodtvPlayBtn(false);
+          setGoodtvQueueStatus(
+            "일시정지",
+            goodtvDayRuntime.queue[goodtvDayRuntime.idx],
+            goodtvDayRuntime.idx,
+            goodtvDayRuntime.queue.length
+          );
+          return;
+        }
+
+        if (goodtvDayRuntime.paused) {
+          const item = goodtvDayRuntime.queue[goodtvDayRuntime.idx];
+          if (a.error && item) {
+            resetGoodtvAudioMedia({ clearLastUrl: true });
+            const url = buildGoodTvBibleAudioUrl(item.bookNum, item.chapter);
+            goodtvAudio.lastUrl = url;
+            const result = await playGoodtvAudioWithRetry(a, url, {
+              attempts: 3,
+              timeoutMs: 8000,
+            });
+            goodtvDayRuntime.playing = result.ok;
+            goodtvDayRuntime.paused = !result.ok;
+            goodtvAudio.playing = result.ok;
+            setGoodtvPlayBtn(result.ok);
+            setGoodtvQueueStatus(
+              result.ok ? "재생 중…" : "재생 실패",
+              item,
+              goodtvDayRuntime.idx,
+              goodtvDayRuntime.queue.length
+            );
+            return;
+          }
+
+          try {
+            await a.play();
+            goodtvDayRuntime.playing = true;
+            goodtvDayRuntime.paused = false;
+            goodtvAudio.playing = true;
+            setGoodtvPlayBtn(true);
+            setGoodtvQueueStatus(
+              "재생 중…",
+              item,
+              goodtvDayRuntime.idx,
+              goodtvDayRuntime.queue.length
+            );
+          } catch (_) {
+            goodtvDayRuntime.playing = false;
+            goodtvDayRuntime.paused = true;
+            goodtvAudio.playing = false;
+            setGoodtvPlayBtn(false);
+          }
+          return;
         }
 
         if (!currentBibleCtx?.bookNum || !currentBibleCtx?.chapter) {
@@ -388,6 +455,10 @@
         }
 
         const expectedUrl = getGoodtvUrlFromCtx();
+        if (a.error) {
+          resetGoodtvAudioMedia({ clearLastUrl: true });
+        }
+
         if (!a.src || !expectedUrl || a.src !== expectedUrl) {
           await loadGoodtvFromCtx({ autoplay: false, preserve: false });
         }
@@ -398,8 +469,16 @@
             goodtvAudio.playing = true;
             setGoodtvPlayBtn(true);
           } catch (_) {
-            goodtvAudio.playing = false;
-            setGoodtvPlayBtn(false);
+            const result = await playGoodtvAudioWithRetry(a, expectedUrl, {
+              attempts: 3,
+              timeoutMs: 8000,
+            });
+
+            goodtvAudio.playing = result.ok;
+            setGoodtvPlayBtn(result.ok);
+            if (!result.ok) {
+              resetGoodtvAudioMedia({ clearLastUrl: true });
+            }
           }
           return;
         }
