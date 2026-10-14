@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'memorize/app.js'), 'utf8');
 const weeks = JSON.parse(fs.readFileSync(path.join(root, 'memorize/data.json'), 'utf8')).weeks;
 const ttsSource = source.slice(0, source.indexOf('  const renderHeader')) +
-  '\n globalThis.api = { startTTS, stopTTS, formatVerseRefForTTS, formatVerseRefForTTSNoAmen }; })();';
+  '\n globalThis.api = { startTTS, stopTTS, formatVerseRefForTTS }; })();';
 
 function player() {
   const spoken = [];
@@ -48,10 +48,10 @@ for (const preset of ['slow', 'normal', 'fast']) {
       p.startTTS({ weeks: [week], selectedWeek: week.week }, { announceTitle: true });
       const [first, second] = week.verses;
       const expected = [
-        week.title, p.formatVerseRefForTTSNoAmen(first.ref), first.text,
-        p.formatVerseRefForTTSNoAmen(first.ref), week.title,
-        p.formatVerseRefForTTSNoAmen(second.ref), second.text,
-        p.formatVerseRefForTTS(second.ref), week.title
+        week.title, p.formatVerseRefForTTS(first.ref), first.text,
+        p.formatVerseRefForTTS(first.ref), week.title,
+        p.formatVerseRefForTTS(second.ref), second.text,
+        p.formatVerseRefForTTS(second.ref) + ' 아멘!', week.title
       ];
       for (let i = 1; i < expected.length; i++) { p.end(); p.advance(); }
       assert.deepEqual(p.spoken.map(u => u.text), expected);
@@ -61,13 +61,13 @@ for (const preset of ['slow', 'normal', 'fast']) {
       assert(p.spoken.every(u => u.rate ===
         (preset === 'slow' ? 0.8 : preset === 'fast' ? 1.3 : 1)));
       assert.equal(p.spoken.slice(0, 8).filter(u => u.text.includes('아멘!')).length, 1);
-      for (const index of [1, 3, 5]) {
-        assert.equal(p.spoken[index].text.includes('말씀'), false);
-      }
       assert(p.spoken[7].text.endsWith(' 말씀. 아멘!'));
+      for (const index of [1, 3, 5]) {
+        assert(p.spoken[index].text.endsWith(' 말씀.'));
+      }
       if (week.week === 1) {
-        assert.equal(p.spoken[1].text, '로마서 십장 구절에서 십절.');
-        assert.equal(p.spoken[5].text, '마태복음 십육장 십육절.');
+        assert.equal(p.spoken[1].text, '로마서 십장 구절에서 십절 말씀.');
+        assert.equal(p.spoken[5].text, '마태복음 십육장 십육절 말씀.');
       }
     }
   });

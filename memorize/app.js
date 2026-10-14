@@ -261,24 +261,8 @@
     const unitLabel = bookName === "시편" ? "편" : "장";
     const verseText = formatVerseNumbersForTTS(rest, unitLabel);
 
-    if (!verseText) return `${bookName} ${rest} 말씀. 아멘!`;
-    return `${bookName} ${verseText} 말씀. 아멘!`;
-  };
-
-  const formatVerseRefForTTSNoAmen = (ref) => {
-    const value = String(ref || "").trim();
-    if (!value) return "";
-
-    const match = value.match(/^([^\d\s]+)\s*(.+)$/);
-    if (!match) return value;
-
-    const [, shortName, rest] = match;
-    const bookName = BIBLE_BOOK_NAMES[shortName] || shortName;
-    const unitLabel = bookName === "시편" ? "편" : "장";
-    const verseText = formatVerseNumbersForTTS(rest, unitLabel);
-
-    if (!verseText) return `${bookName} ${rest}.`;
-    return `${bookName} ${verseText}.`;
+    if (!verseText) return `${bookName} ${rest} 말씀.`;
+    return `${bookName} ${verseText} 말씀.`;
   };
 
   const getRateByPreset = (preset) => {
@@ -365,10 +349,9 @@
     const segments = weekData.verses
       .map((verse) => ({
         text: sanitizeForTTS(verse.text),
-        refPlain: sanitizeForTTS(formatVerseRefForTTSNoAmen(verse.ref)),
         ref: sanitizeForTTS(formatVerseRefForTTS(verse.ref)),
       }))
-      .filter((segment) => segment.text || segment.refPlain || segment.ref);
+      .filter((segment) => segment.text || segment.ref);
     if (!segments.length) {
       stopTTS();
       return;
@@ -383,9 +366,9 @@
       const current = segments[index];
       const steps = [
         index > 0 && announceTitle ? titleToSpeak : "",
-        current.refPlain || "",
+        current.ref || "",
         current.text || "",
-        (index === segments.length - 1 ? current.ref : current.refPlain) || "",
+        current.ref && index === segments.length - 1 ? `${current.ref} 아멘!` : current.ref,
       ].filter(Boolean);
 
       const speakStep = (stepIndex) => {
