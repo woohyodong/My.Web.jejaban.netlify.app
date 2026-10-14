@@ -277,8 +277,8 @@
     const unitLabel = bookName === "시편" ? "편" : "장";
     const verseText = formatVerseNumbersForTTS(rest, unitLabel);
 
-    if (!verseText) return `${bookName} ${rest} 말씀.`;
-    return `${bookName} ${verseText} 말씀.`;
+    if (!verseText) return `${bookName} ${rest}.`;
+    return `${bookName} ${verseText}.`;
   };
 
   const getRateByPreset = (preset) => {
@@ -382,9 +382,10 @@
 
       const current = segments[index];
       const steps = [
+        index > 0 && announceTitle ? titleToSpeak : "",
         current.refPlain || "",
         current.text || "",
-        current.ref || "",
+        (index === segments.length - 1 ? current.ref : current.refPlain) || "",
       ].filter(Boolean);
 
       const speakStep = (stepIndex) => {
