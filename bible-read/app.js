@@ -62,6 +62,7 @@
   const goodtvAudio = {
     el: null,
     playing: false,
+    loading: false,
     lastUrl: null, // 마지막으로 로드한 음원 URL (패널 토글로 재로딩 방지)
   };
 
@@ -99,6 +100,7 @@
 
   const waitForGoodtvAudioReady = (audio, timeoutMs = 8000) =>
     new Promise((resolve) => {
+      if (audio.readyState >= 2) return resolve(true);
       let settled = false;
       let timer = null;
 
@@ -126,11 +128,12 @@
   const playGoodtvAudioWithRetry = async (
     audio,
     url,
-    { attempts = 3, timeoutMs = 8000, onAttempt } = {}
+    { attempts = 3, timeoutMs = 8000, onAttempt, isCurrent = () => true } = {}
   ) => {
     let lastError = null;
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
+      if (!isCurrent()) return { ok: false, cancelled: true };
       try {
         onAttempt?.(attempt);
         audio.src = url;
@@ -140,11 +143,14 @@
           audio,
           timeoutMs + (attempt - 1) * 2000
         );
+        if (!isCurrent()) return { ok: false, cancelled: true };
         if (!ready) throw new Error("audio-ready-timeout");
 
         await audio.play();
+        if (!isCurrent()) return { ok: false, cancelled: true };
         return { ok: true, attempt };
       } catch (err) {
+        if (!isCurrent()) return { ok: false, cancelled: true };
         lastError = err;
         resetGoodtvAudioMedia();
 
@@ -179,7 +185,12 @@
   };
 
   const setGoodtvPlayBtn = (playing) => {
-    qs("#goodtv-play").text(playing ? "❚❚" : "▶");
+    qs("#goodtv-play").text(playing ? "❚❚ 일시정지" : "▶ 재생");
+  };
+
+  const setGoodtvLoading = (loading) => {
+    goodtvAudio.loading = loading;
+    qs("#goodtv-play").prop("disabled", loading).attr("aria-busy", String(loading));
   };
 
   const resetGoodtvAudioMedia = ({ clearLastUrl = false } = {}) => {
@@ -230,72 +241,14 @@
 
     // 표시 초기화
     qs("#goodtv-day-status").text("");
-    qs("#goodtv-day-label").addClass("hidden");
-    setGoodtvPanelText("선택 Day 전체 듣기", "재생 버튼으로 오늘 분량을 이어서 듣습니다.");
+    qs("#goodtv-play-range").text("");
+    setGoodtvLoading(false);
+    setGoodtvPanelText("GOOD TV 원음", "");
   };
 
   // Day 변경 시 GOODTV 패널/컨트롤 초기화 (패널은 유지)
   const resetGoodtvForDayChange = () => {
     resetGoodtvStateKeepPanel(); // ✅
-  };
-
-  const getGoodtvUrlFromCtx = () => {
-    const ctx = currentBibleCtx;
-    if (!ctx?.bookNum || !ctx?.chapter) return null;
-    return buildGoodTvBibleAudioUrl(ctx.bookNum, ctx.chapter);
-  };
-
-  const loadGoodtvFromCtx = async ({
-    autoplay = false,
-    preserve = false,
-  } = {}) => {
-    const ctx = currentBibleCtx;
-    if (!ctx) {
-      alert("성경을 먼저 선택해 주세요.");
-      return;
-    }
-
-    const url = getGoodtvUrlFromCtx();
-    if (!url) {
-      alert("음원 주소를 만들 수 없어요.");
-      return;
-    }
-
-    const a = ensureGoodtvAudio();
-
-    // 패널을 닫았다가 다시 열 때(토글) 음원을 다시 로드하면 재생이 끊김.
-    // preserve=true 이고 URL이 동일하면 src/seek 리셋을 하지 않는다.
-    if (preserve && (goodtvAudio.lastUrl === url || a.src === url)) {
-      setGoodtvPanelText("GOOD TV 원음", await formatGoodtvRef(ctx));
-      return;
-    }
-
-    goodtvAudio.lastUrl = url; // ✅ 여기서만 갱신
-    a.src = url;
-
-    setGoodtvPanelText("GOOD TV 원음", await formatGoodtvRef(ctx));
-
-    // UI 리셋
-    qs("#goodtv-seek").val(0);
-    qs("#goodtv-time").text("0:00");
-    qs("#goodtv-duration").text("0:00");
-
-    if (autoplay) {
-      try {
-        await a.play(); // ✅ 사용자 클릭 흐름에서 호출되도록 보장
-        goodtvAudio.playing = true;
-        setGoodtvPlayBtn(true);
-      } catch (_) {
-        goodtvAudio.playing = false;
-        setGoodtvPlayBtn(false);
-      }
-    } else {
-      goodtvAudio.playing = false;
-      setGoodtvPlayBtn(false);
-    }
-    try {
-      window.__goodtvUpdateNav && window.__goodtvUpdateNav();
-    } catch (_) {}
   };
 
   const toggleGoodtvPanel = async () => {
@@ -309,7 +262,6 @@
 
     if (willOpen) {
       $panel.removeClass("hidden");
-      await loadGoodtvFromCtx({ autoplay: false, preserve: true }); // 열 때는 준비만 (재생 유지)
       qs("#open-label").text("▲");
     } else {
       $panel.addClass("hidden");
@@ -318,45 +270,16 @@
     }
   };
 
-  const syncGoodtvIdlePanel = async (state) => {
-    if (goodtvDayRuntime.playing || goodtvDayRuntime.paused) return;
-
-    setGoodtvPanelText("선택 Day 전체 듣기", "재생 버튼으로 오늘 분량을 이어서 듣습니다.");
-    qs("#goodtv-day-label").removeClass("hidden");
-
-    try {
-      const queue = await buildGoodtvDayQueue(state);
-      const preview = queue.slice(0, 6).map((x) => `${x.short}${x.chapter}`).join(" · ");
-      qs("#goodtv-day-status").text(preview || "(선택 분량 없음)");
-    } catch (_) {
-      qs("#goodtv-day-status").text("(선택 분량을 불러오지 못했습니다)");
-    }
-  };
-
-  const toggleGoodtvPanelForDay = async (state) => {
-    const $panel = qs("#goodtv-audio-panel");
-    if (!$panel.length) return;
-
-    const willOpen = $panel.hasClass("hidden");
-    const cur = getAUDIO();
-    setAUDIO({ ...cur, open: willOpen });
-
-    if (willOpen) {
-      $panel.removeClass("hidden");
-      await syncGoodtvIdlePanel(state);
-      qs("#open-label").text("▲");
-      return;
-    }
-
-    $panel.addClass("hidden");
-    qs("#open-label").text("▼");
-  };
-
   const bindGoodtvControls = (state) => {
     const a = ensureGoodtvAudio();
 
     if (!a.__goodtvRuntimeStatusBound) {
       a.__goodtvRuntimeStatusBound = true;
+
+      a.addEventListener("playing", () => {
+        if (!goodtvDayRuntime.playing) return;
+        setGoodtvQueueStatus("재생 중…", goodtvDayRuntime.queue[goodtvDayRuntime.idx], goodtvDayRuntime.idx, goodtvDayRuntime.queue.length);
+      });
 
       a.addEventListener("waiting", () => {
         if (!goodtvDayRuntime.playing) return;
@@ -379,136 +302,74 @@
       });
     }
 
-    // 현재 장 재생/일시정지
     qs("#goodtv-play")
       .off("click")
       .on("click", async () => {
-        qs("#goodtv-audio-panel").removeClass("hidden");
-        qs("#open-label").text("▲");
-        const cur = getAUDIO();
-        setAUDIO({ ...cur, open: true });
-
+        if (goodtvAudio.loading) return;
         if (goodtvDayRuntime.playing) {
-          try {
-            a.pause();
-          } catch (_) {}
+          a.pause();
           goodtvDayRuntime.playing = false;
           goodtvDayRuntime.paused = true;
           goodtvAudio.playing = false;
           setGoodtvPlayBtn(false);
-          setGoodtvQueueStatus(
-            "일시정지",
-            goodtvDayRuntime.queue[goodtvDayRuntime.idx],
-            goodtvDayRuntime.idx,
-            goodtvDayRuntime.queue.length
-          );
+          setGoodtvQueueStatus("일시정지", goodtvDayRuntime.queue[goodtvDayRuntime.idx], goodtvDayRuntime.idx, goodtvDayRuntime.queue.length);
           return;
         }
 
-        if (goodtvDayRuntime.paused) {
-          const item = goodtvDayRuntime.queue[goodtvDayRuntime.idx];
-          if (a.error && item) {
-            resetGoodtvAudioMedia({ clearLastUrl: true });
-            const url = buildGoodTvBibleAudioUrl(item.bookNum, item.chapter);
-            goodtvAudio.lastUrl = url;
-            const result = await playGoodtvAudioWithRetry(a, url, {
-              attempts: 3,
-              timeoutMs: 8000,
-            });
-            goodtvDayRuntime.playing = result.ok;
-            goodtvDayRuntime.paused = !result.ok;
-            goodtvAudio.playing = result.ok;
-            setGoodtvPlayBtn(result.ok);
-            setGoodtvQueueStatus(
-              result.ok ? "재생 중…" : "재생 실패",
-              item,
-              goodtvDayRuntime.idx,
-              goodtvDayRuntime.queue.length
-            );
-            return;
-          }
-
-          try {
-            await a.play();
-            goodtvDayRuntime.playing = true;
-            goodtvDayRuntime.paused = false;
-            goodtvAudio.playing = true;
-            setGoodtvPlayBtn(true);
-            setGoodtvQueueStatus(
-              "재생 중…",
-              item,
-              goodtvDayRuntime.idx,
-              goodtvDayRuntime.queue.length
-            );
-          } catch (_) {
-            goodtvDayRuntime.playing = false;
-            goodtvDayRuntime.paused = true;
-            goodtvAudio.playing = false;
-            setGoodtvPlayBtn(false);
-          }
-          return;
-        }
-
-        if (!currentBibleCtx?.bookNum || !currentBibleCtx?.chapter) {
-          alert("성경 구절을 먼저 선택해 주세요.");
-          return;
-        }
-
-        const expectedUrl = getGoodtvUrlFromCtx();
-        if (a.error) {
-          resetGoodtvAudioMedia({ clearLastUrl: true });
-        }
-
-        if (!a.src || !expectedUrl || a.src !== expectedUrl) {
-          await loadGoodtvFromCtx({ autoplay: false, preserve: false });
-        }
-
-        if (!goodtvAudio.playing) {
-          try {
-            await a.play();
-            goodtvAudio.playing = true;
-            setGoodtvPlayBtn(true);
-          } catch (_) {
-            const result = await playGoodtvAudioWithRetry(a, expectedUrl, {
-              attempts: 3,
-              timeoutMs: 8000,
-            });
-
-            goodtvAudio.playing = result.ok;
-            setGoodtvPlayBtn(result.ok);
-            if (!result.ok) {
-              resetGoodtvAudioMedia({ clearLastUrl: true });
+        setGoodtvLoading(true);
+        const ctx = currentBibleCtx;
+        const session = goodtvDayRuntime.session;
+        try {
+          if (goodtvDayRuntime.paused) {
+            if (a.error || !a.src) {
+              goodtvDayRuntime.playing = true;
+              goodtvDayRuntime.paused = false;
+              await goodtvDayRuntime.playAt(goodtvDayRuntime.idx);
+            } else {
+              await a.play();
+              if (ctx !== currentBibleCtx || session !== goodtvDayRuntime.session) return;
+              goodtvDayRuntime.playing = true;
+              goodtvDayRuntime.paused = false;
+              goodtvAudio.playing = true;
+              setGoodtvPlayBtn(true);
+              setGoodtvQueueStatus("재생 중…", goodtvDayRuntime.queue[goodtvDayRuntime.idx], goodtvDayRuntime.idx, goodtvDayRuntime.queue.length);
             }
+          } else {
+            await playGoodtvDayQueue(state);
           }
-          return;
+        } catch (_) {
+          if (ctx !== currentBibleCtx || session !== goodtvDayRuntime.session) return;
+          goodtvDayRuntime.playing = false;
+          goodtvDayRuntime.paused = !!goodtvDayRuntime.queue.length;
+          goodtvAudio.playing = false;
+          setGoodtvPlayBtn(false);
+          qs("#goodtv-day-status").text("재생하지 못했어요. 다시 눌러 주세요.");
+        } finally {
+          if (ctx === currentBibleCtx || (!goodtvDayRuntime.playing && !goodtvDayRuntime.paused)) setGoodtvLoading(false);
         }
-
-        a.pause();
-        goodtvAudio.playing = false;
-        setGoodtvPlayBtn(false);
       });
 
-    qs("#goodtv-play-day")
+    qs("#goodtv-repeat")
       .off("click")
-      .on("click", async () => {
-        const entry = state?.PLAN?.[state.selectedDay - 1];
-        const items = expandReadingItemsForDisplay(entry?.readings ?? []);
-        if (items[0]?.token) {
-          await openBibleModal(items[0].token);
-        }
-        await playGoodtvDayQueue(state, { startIndex: 0 });
+      .on("click", () => {
+        goodtvDayRuntime.repeat = !goodtvDayRuntime.repeat;
+        a.loop = goodtvDayRuntime.repeat;
+        qs("#goodtv-repeat")
+          .attr("aria-pressed", String(goodtvDayRuntime.repeat))
+          .attr("title", goodtvDayRuntime.repeat ? "한 장 반복 끄기" : "현재 장 반복 켜기")
+          .toggleClass("bg-blue-100 dark:bg-blue-900", goodtvDayRuntime.repeat);
+        renderGoodtvRange(goodtvDayRuntime.queue);
       });
 
-    // 이전/다음 장 (단순 ±1)
-    const navCache = { day: null, queue: null };
-
-    const getNavQueue = async () => {
-      const day = Number(state?.selectedDay || 1);
-      if (navCache.day === day && Array.isArray(navCache.queue)) return navCache.queue;
-      navCache.day = day;
-      navCache.queue = await buildGoodtvDayQueue(state);
-      return navCache.queue;
-    };
+    a.addEventListener("error", () => {
+      if (goodtvAudio.loading || !goodtvDayRuntime.playing) return;
+      a.pause();
+      goodtvDayRuntime.playing = false;
+      goodtvDayRuntime.paused = true;
+      goodtvAudio.playing = false;
+      setGoodtvPlayBtn(false);
+      qs("#goodtv-day-status").text("재생 오류 · 다시 눌러 주세요.");
+    });
 
     // timeupdate -> 진행바
     a.addEventListener("timeupdate", () => {
@@ -602,6 +463,7 @@
   const goodtvDayRuntime = {
     playing: false,
     paused: false,
+    repeat: false,
     queue: [],
     idx: 0,
     session: 0,
@@ -672,145 +534,147 @@
     return out;
   };
 
-  const playGoodtvDayQueue = async (state, { startIndex = 0 } = {}) => {
-    const a = ensureGoodtvAudio();
-
-    stopGoodtvDayQueue();
-
+  const buildGoodtvRemainingQueue = async (state) => {
+    const ctx = currentBibleCtx;
     const queue = await buildGoodtvDayQueue(state);
-    goodtvDayRuntime.queue = queue;
-    goodtvDayRuntime.idx = startIndex;
-    goodtvDayRuntime.session += 1;
-    goodtvDayRuntime.selectionKey = getGoodtvDayKey(state);
-    const mySession = goodtvDayRuntime.session;
+    const sameChapter = (item) => item.bookNum === ctx?.bookNum && item.chapter === ctx?.chapter;
+    let start = queue.findIndex((item) => sameChapter(item) && item.token === ctx?.token);
+    // 장 범위는 화면에서 개별 장 토큰으로 펼쳐진다.
+    if (start < 0) start = queue.findIndex(sameChapter);
+    return start < 0 ? [] : queue.slice(start);
+  };
 
-    const preview = queue.map((x) => `${x.short}${x.chapter}`).join(" · ");
-    qs("#goodtv-day-status").text(preview || "(선택 분량 없음)");
-    qs("#goodtv-day-label").removeClass("hidden");
+  const renderGoodtvRange = (queue) => {
+    const first = queue[0];
+    const last = queue[queue.length - 1];
+    const range = first
+      ? queue.length > 1
+        ? first.short + first.chapter + " → " + last.short + last.chapter + "까지 이어서 재생"
+        : first.short + first.chapter + " 재생"
+      : "";
+    const current = queue[Math.min(goodtvDayRuntime.idx, queue.length - 1)];
+    const repeat = current && goodtvDayRuntime.repeat
+      ? " · " + current.short + current.chapter + " 한 장 반복"
+      : "";
+    qs("#goodtv-play-range").text(range + repeat);
+  };
 
+  const playGoodtvDayQueue = async (state) => {
+    const a = ensureGoodtvAudio();
+    const ctx = currentBibleCtx;
+    const selectionKey = getGoodtvDayKey(state);
+    const queue = goodtvDayRuntime.selectionKey === selectionKey && goodtvDayRuntime.queue.length
+      ? goodtvDayRuntime.queue
+      : await buildGoodtvRemainingQueue(state);
+    const dayQueue = await buildGoodtvDayQueue(state);
+    if (ctx !== currentBibleCtx || selectionKey !== getGoodtvDayKey(state)) return;
     if (!queue.length) {
-      alert("선택한 Day 분량(읽기표)을 찾지 못했어요.");
+      alert("선택한 Day의 성경을 먼저 선택해 주세요.");
       return;
     }
 
-    // 패널 열기 (사용자 클릭 흐름)
+    goodtvDayRuntime.queue = queue;
+    goodtvDayRuntime.idx = 0;
+    goodtvDayRuntime.session += 1;
+    goodtvDayRuntime.selectionKey = selectionKey;
+    const mySession = goodtvDayRuntime.session;
+    const coversWholeDay = queue.length === dayQueue.length;
+    let hadFailure = false;
+    const isCurrent = () => goodtvDayRuntime.playing && goodtvDayRuntime.session === mySession && selectionKey === getGoodtvDayKey(state);
+
     qs("#goodtv-audio-panel").removeClass("hidden");
     qs("#open-label").text("▲");
-    // ✅ 전체듣기로 열렸다면 토글 상태도 open:true로 동기화
-    setAUDIO({ ...getAUDIO(), open: true }); // ✅ (추가)
-
+    setAUDIO({ ...getAUDIO(), open: true });
     goodtvDayRuntime.playing = true;
     goodtvDayRuntime.paused = false;
+    renderGoodtvRange(queue);
 
     const playAt = async (i) => {
-      if (!goodtvDayRuntime.playing) return;
-      if (goodtvDayRuntime.session !== mySession) return;
-
-      const item = goodtvDayRuntime.queue[i];
+      if (!isCurrent()) return;
+      const item = queue[i];
       if (!item) {
         goodtvDayRuntime.playing = false;
         goodtvDayRuntime.paused = false;
         goodtvAudio.playing = false;
         setGoodtvPlayBtn(false);
-        setGoodtvPanelText("선택 Day 전체 듣기", "선택한 분량 재생을 마쳤습니다.");
-        qs("#goodtv-day-status").text("선택 분량 재생 완료 ✓");
-        // ✅ 전체 이어듣기(선택 분량) 완료 시, 완료 체크 처리
-        markSelectedDayDone(state);
-        try {
-          render(state);
-        } catch (_) {}
+        setGoodtvPanelText("GOOD TV 원음", "선택한 분량 재생을 마쳤습니다.");
+        qs("#goodtv-day-status").text(hadFailure
+          ? "재생하지 못한 장을 제외하고 재생 완료"
+          : coversWholeDay ? "전체 분량 재생 완료 ✓" : "남은 분량을 모두 들었습니다 ✓");
+        if (coversWholeDay && !hadFailure) {
+          markSelectedDayDone(state);
+          try { render(state); } catch (_) {}
+        }
+        setGoodtvLoading(false);
         return;
       }
 
-      // ✅ 구절 변경: 패널은 유지, 재생/표시만 초기화 후 진행
-      // (너무 강한 초기화를 원치 않으면 아래 2줄 중 stopGoodtvAudio만 남겨도 됨)
-      stopGoodtvAudio(); // ✅ 재생 UI 리셋(간단)
-      // resetGoodtvStateKeepPanel(); // (선택) 완전 초기화가 필요하면 사용
-
-      // 모달/패널 표시용
-      currentBibleCtx = { bookNum: item.bookNum, chapter: item.chapter }; // ✅ 현재 위치 동기화
-      await renderBibleModalForChapter({
-        bookNum: item.bookNum,
-        chapter: item.chapter,
-        titleText: `${item.short}${item.chapter}`,
-      });
-      setGoodtvPanelText(
-        "선택 Day 전체 듣기",
-        await formatGoodtvRef({ bookNum: item.bookNum, chapter: item.chapter })
-      ); // ✅ 표시를 한글 책명으로
-      setGoodtvQueueStatus("재생 준비 중…", item, i, goodtvDayRuntime.queue.length);
-
-      const url = buildGoodTvBibleAudioUrl(item.bookNum, item.chapter);
-      goodtvAudio.lastUrl = url; // ✅ 큐 재생 중에도 마지막 URL 갱신 (패널 토글 재로딩 방지)
-
-      // seek UI 리셋
-      qs("#goodtv-seek").val(0);
-      qs("#goodtv-time").text("0:00");
-      qs("#goodtv-duration").text("0:00");
-
-      const result = await playGoodtvAudioWithRetry(a, url, {
-        attempts: 4,
-        timeoutMs: 8000,
-        onAttempt: (attempt) => {
-          if (attempt === 1) {
-            setGoodtvQueueStatus("재생 준비 중…", item, i, goodtvDayRuntime.queue.length);
-            return;
-          }
-          setGoodtvQueueStatus(
-            `재시도 중… ${attempt - 1}/3`,
-            item,
-            i,
-            goodtvDayRuntime.queue.length
-          );
-        },
-      });
-
-      if (result.ok) {
-        goodtvAudio.playing = true;
-        setGoodtvPlayBtn(true);
-        setGoodtvQueueStatus("재생 중…", item, i, goodtvDayRuntime.queue.length);
-        return;
+      setGoodtvLoading(true);
+      let failed = false;
+      try {
+        stopGoodtvAudio();
+        currentBibleCtx = { token: item.token, bookNum: item.bookNum, chapter: item.chapter };
+        renderGoodtvRange(queue);
+        await renderBibleModalForChapter({ bookNum: item.bookNum, chapter: item.chapter, titleText: item.short + item.chapter });
+        if (!isCurrent()) return;
+        const ref = await formatGoodtvRef(item);
+        if (!isCurrent()) return;
+        setGoodtvPanelText("GOOD TV 원음", ref);
+        const url = buildGoodTvBibleAudioUrl(item.bookNum, item.chapter);
+        goodtvAudio.lastUrl = url;
+        const result = await playGoodtvAudioWithRetry(a, url, {
+          attempts: 4,
+          timeoutMs: 8000,
+          isCurrent,
+          onAttempt: (attempt) => setGoodtvQueueStatus(attempt === 1 ? "재생 준비 중…" : "연결 재시도 중…", item, i, queue.length),
+        });
+        if (!isCurrent()) return;
+        if (result.ok) {
+          goodtvAudio.playing = true;
+          setGoodtvPlayBtn(true);
+          setGoodtvQueueStatus("재생 중…", item, i, queue.length);
+          return;
+        }
+        failed = true;
+      } catch (_) {
+        if (!isCurrent()) return;
+        failed = true;
+      } finally {
+        if (goodtvDayRuntime.session === mySession) setGoodtvLoading(false);
       }
 
+      if (!failed || !isCurrent()) return;
+      hadFailure = true;
       goodtvAudio.playing = false;
       setGoodtvPlayBtn(false);
-      setGoodtvQueueStatus(
-        "재생 실패, 다음 장으로 이동합니다…",
-        item,
-        i,
-        goodtvDayRuntime.queue.length
-      );
-
-      if (!goodtvDayRuntime.playing || goodtvDayRuntime.session !== mySession) return;
-
-      goodtvDayRuntime.idx = i + 1;
-      await sleep(700);
-      if (typeof goodtvDayRuntime.playAt === "function") {
-        await goodtvDayRuntime.playAt(goodtvDayRuntime.idx);
+      if (goodtvDayRuntime.repeat) {
+        goodtvDayRuntime.playing = false;
+        goodtvDayRuntime.paused = true;
+        setGoodtvQueueStatus("재생 실패 · 다시 눌러 주세요", item, i, queue.length);
+        return;
       }
+      setGoodtvQueueStatus("재생 실패, 다음 장으로 이동합니다…", item, i, queue.length);
+      setGoodtvLoading(true);
+      await sleep(700);
+      if (!isCurrent()) return;
+      goodtvDayRuntime.idx = i + 1;
+      await playAt(goodtvDayRuntime.idx);
     };
 
-    // playAt은 호출마다 새 클로저가 생기므로, ended 핸들러가 최신 playAt을 쓰도록 런타임에 저장한다.
-    goodtvDayRuntime.playAt = playAt; // ✅ 다음 트랙 진행에서 최신 playAt 사용
-
-    // ended 핸들러(1회만 바인딩) - 내부에서 goodtvDayRuntime.playAt을 참조(클로저 고착 방지)
+    goodtvDayRuntime.playAt = playAt;
     if (!a.__goodtvDayQueueBound) {
       a.__goodtvDayQueueBound = true;
       a.addEventListener("ended", () => {
         if (!goodtvDayRuntime.playing) return;
         goodtvDayRuntime.idx += 1;
-        // 다음 트랙 세팅/재생은 다음 틱에서 처리(브라우저별 ended 타이밍 이슈 방지)
+        const session = goodtvDayRuntime.session;
         setTimeout(() => {
-          try {
-            if (typeof goodtvDayRuntime.playAt === "function") {
-              goodtvDayRuntime.playAt(goodtvDayRuntime.idx);
-            }
-          } catch (_) {}
+          if (goodtvDayRuntime.session !== session) return;
+          goodtvDayRuntime.playAt?.(goodtvDayRuntime.idx);
         }, 0);
       });
     }
-
-    await playAt(startIndex);
+    await playAt(0);
   };
 
   // =========================================================
@@ -1040,7 +904,7 @@
     window.SiteOverlay?.close("bible-modal");
   };
 
-  const openBibleModal = async (token, { autoplayAudio = false } = {}) => {
+  const openBibleModal = async (token, state) => {
     // ✅ 새 토큰(구절) 열 때: 패널은 유지하되 상태 초기화
     resetGoodtvStateKeepPanel(); // ✅
 
@@ -1150,12 +1014,14 @@
 
       $body.html(html || `<div class="text-sm text-gray-500">표시할 내용이 없어요.</div>`);
 
-      if (autoplayAudio) {
-        qs("#goodtv-audio-panel").removeClass("hidden");
-        qs("#open-label").text("▲");
-        setAUDIO({ ...getAUDIO(), open: true });
-        await loadGoodtvFromCtx({ autoplay: true, preserve: false });
-      }
+      const ctx = currentBibleCtx;
+      const ref = await formatGoodtvRef(ctx);
+      const queue = await buildGoodtvRemainingQueue(state);
+      if (ctx !== currentBibleCtx) return;
+      goodtvDayRuntime.queue = queue;
+      goodtvDayRuntime.selectionKey = getGoodtvDayKey(state);
+      setGoodtvPanelText("GOOD TV 원음", ref);
+      renderGoodtvRange(queue);
     } catch (e) {
       qs("#bible-modal-subtitle").text("로드 오류");
       $body.html(
@@ -1534,7 +1400,7 @@
       .on("click.bibleRef", ".reading-ref", async (e) => {
         const ref = $(e.currentTarget).data("ref");
         if (!ref) return;
-        openBibleModal(ref);
+        await openBibleModal(ref, state);
       });
 
     // GOODTV 토글(모달 내 버튼)
